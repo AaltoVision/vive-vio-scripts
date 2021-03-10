@@ -2,6 +2,7 @@
 #include <iostream>
 #include <vector>
 #include <iterator>
+#include <chrono>
 
 #include <SDL.h>
 #include <GL/glew.h>
@@ -18,7 +19,6 @@ int main(int argc, char *argv[])
     }
 
     auto eError = vr::VRInitError_None;
-    // auto m_pHMD = vr::VR_Init( &eError, vr::VRApplication_Background );
     auto m_pHMD = vr::VR_Init( &eError, vr::VRApplication_Other );
 
 	if ( eError != vr::VRInitError_None )
@@ -42,38 +42,44 @@ int main(int argc, char *argv[])
         }
     }
 
-    // vr::VRCompositor()->
-
-    // auto tracker_pose = vr::TrackedDevicePose_t{};
-    // vr::VRSystem()->GetDeviceToAbsoluteTrackingPose(vr::TrackingUniverseSeated, 0.0f, &tracker_pose, 1);
-    auto all_poses = std::vector<vr::TrackedDevicePose_t>(vr::k_unMaxTrackedDeviceCount);
-    vr::VRSystem()->GetDeviceToAbsoluteTrackingPose(
-        vr::TrackingUniverseSeated, 0.0f, all_poses.data(), (uint32_t)all_poses.size());
-
-    auto print_pose = [](vr::TrackedDevicePose_t const& pose)
+    using clock = std::chrono::high_resolution_clock;
+    auto t_start = clock::now();
+    while (true)
     {
-        std::printf("Tracking result: %d\n", (int)pose.eTrackingResult);
-        std::printf("Connected: %d\n", (int)pose.bDeviceIsConnected);
-        std::printf("Valid: %d\n", pose.bPoseIsValid ? 1 : 0);
-        auto& m = pose.mDeviceToAbsoluteTracking.m;
-        std::printf("Pose:\n\t%.2f %.2f %.2f %.2f\n\t%.2f %.2f %.2f %.2f\n\t%.2f %.2f %.2f %.2f\n",
-                    m[0][0], m[0][1], m[0][2], m[0][3],
-                    m[1][0], m[1][1], m[1][2], m[1][3],
-                    m[2][0], m[2][1], m[2][2], m[2][3]);
-    };
+        auto t_now = clock::now();
+        auto all_poses = std::vector<vr::TrackedDevicePose_t>(vr::k_unMaxTrackedDeviceCount);
+        vr::VRSystem()->GetDeviceToAbsoluteTrackingPose(
+            vr::TrackingUniverseSeated, 0.0f, all_poses.data(), (uint32_t)all_poses.size());
 
-    for (size_t i = 0; i < trackers.size(); ++i)
-    {
-        print_pose(all_poses[trackers[i]]);
+        auto debug_print_pose = [](vr::TrackedDevicePose_t const& pose)
+        {
+            std::printf("Tracking result: %d\n", (int)pose.eTrackingResult);
+            std::printf("Connected: %d\n", (int)pose.bDeviceIsConnected);
+            std::printf("Valid: %d\n", pose.bPoseIsValid ? 1 : 0);
+            auto& m = pose.mDeviceToAbsoluteTracking.m;
+            std::printf("Pose:\n\t%.2f %.2f %.2f %.2f\n\t%.2f %.2f %.2f %.2f\n\t%.2f %.2f %.2f %.2f\n",
+                        m[0][0], m[0][1], m[0][2], m[0][3],
+                        m[1][0], m[1][1], m[1][2], m[1][3],
+                        m[2][0], m[2][1], m[2][2], m[2][3]);
+        };
+        auto print_position = [](vr::TrackedDevicePose_t const& pose)
+        {
+            auto& m = pose.mDeviceToAbsoluteTracking.m;
+            std::printf("Position:\t%.2f %.2f %.2f\n", m[0][3], m[1][3], m[2][3]);
+        };
+
+        auto t = (t_now - t_start).count() / 1'000'000'000.0;
+        for (size_t i = 0; i < trackers.size(); ++i)
+        {
+            // debug_print_pose(all_poses[trackers[i]]);
+            // print_position(all_poses[trackers[i]]);
+
+            auto& m = all_poses[trackers[i]].mDeviceToAbsoluteTracking.m;
+            std::printf(R"({ "time": %f, "position": { "x": %f, "y": %f, "z": %f } })",
+                t, m[0][3], m[1][3], m[2][3]);
+            std::printf("\n");
+        }
     }
-
-    // auto tracker_count = vr::VRSystem()->GetSortedTrackedDeviceIndicesOfClass(
-    //     vr::TrackedDeviceClass_GenericTracker, nullptr, 0);
-    // auto trackers = std::vector<vr::TrackedDeviceIndex_t>(tracker_count);
-    // vr::VRSystem()->GetSortedTrackedDeviceIndicesOfClass(
-    //     vr::TrackedDeviceClass_GenericTracker, trackers.data(), tracker_count);
-    // std::cout << tracker_count << std::endl;
-    // std::copy(trackers.begin(), trackers.end(), std::ostream_iterator<vr::TrackedDeviceIndex_t>(std::cout, ", "));
 
     vr::VR_Shutdown();
 
