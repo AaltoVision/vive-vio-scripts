@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.5.0)
+cmake_minimum_required(VERSION 3.13.0)
 project(ovr-tracker-app)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -42,3 +42,8 @@ target_link_libraries(ovr-tracker-app PRIVATE
     # openvr_api64
     openvr_imported
     )
+target_precompile_headers(ovr-tracker-app PRIVATE
+    "src/pch.h"
+    )
+target_compile_options(ovr-tracker-app PUBLIC "/MP")
+target_link_options(ovr-tracker-app PUBLIC "/debug:fastlink" "/incremental")
