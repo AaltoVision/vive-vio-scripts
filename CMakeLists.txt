@@ -7,15 +7,8 @@ find_package(OpenGL REQUIRED COMPONENTS OpenGL)
 
 set(EXTERNAL_LIBS "${CMAKE_SOURCE_DIR}/libs")
 
-# dependency: SDL2
-set(SDL2_INCLUDE_DIR "${EXTERNAL_LIBS}/SDL2-2.0.14/include")
-set(SDL2_LIBRARY "${EXTERNAL_LIBS}/SDL2-2.0.14/lib/x64/SDL2.lib")
-set(SDL2MAIN_LIBRARY "${EXTERNAL_LIBS}/SDL2-2.0.14/lib/x64/SDL2main.lib")
-add_library(sdl2_imported STATIC IMPORTED)
-target_include_directories(sdl2_imported INTERFACE ${SDL2_INCLUDE_DIR})
-set_target_properties(sdl2_imported PROPERTIES IMPORTED_LOCATION ${SDL2_LIBRARY})
-add_library(sdl2main_imported STATIC IMPORTED)
-set_target_properties(sdl2main_imported PROPERTIES IMPORTED_LOCATION ${SDL2MAIN_LIBRARY})
+# # dependency: SDL2
+add_subdirectory("${EXTERNAL_LIBS}/SDL2-2.0.14")
 
 # dependency: glew
 add_library(glew_imported STATIC IMPORTED)
@@ -42,8 +35,8 @@ set_target_properties(openvr_imported PROPERTIES IMPORTED_LOCATION
 # app
 add_executable(ovr-tracker-app "src/ovr_tracker_app.cpp")
 target_link_libraries(ovr-tracker-app PRIVATE
-    sdl2_imported
-    sdl2main_imported
+    SDL2
+    SDL2main
     glew_imported
     opengl32.lib
     # openvr_api64
