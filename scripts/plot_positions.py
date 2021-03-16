@@ -24,7 +24,9 @@ if __name__ == "__main__":
     xs = []
     ys = []
     zs = []
-    # rs = []
+    frame_xs = []
+    frame_ys = []
+    frame_zs = []
     f = sys.stdin if args.input is None else open(args.input, "r")
     for line in f:
         j = json.loads(line)
@@ -32,22 +34,28 @@ if __name__ == "__main__":
         xs.append(j["position"]["x"])
         ys.append(j["position"]["y"])
         zs.append(j["position"]["z"])
+        frame_xs.append(np.array(j["rotation"]["col0"]))
+        frame_ys.append(np.array(j["rotation"]["col1"]))
+        frame_zs.append(np.array(j["rotation"]["col2"]))
     if f is not sys.stdin:
         f.close()
 
-    # downsample
+    # downsample (note: much faster to use sample_rate=1 and downsample data beforehand)
     sample_rate = int(args.sample_rate)
-    ts = np.array([ts[i * sample_rate] for i in range(len(ts) // sample_rate)])
-    xs = np.array([xs[i * sample_rate] for i in range(len(xs) // sample_rate)])
-    ys = np.array([ys[i * sample_rate] for i in range(len(ys) // sample_rate)])
-    zs = np.array([zs[i * sample_rate] for i in range(len(zs) // sample_rate)])
-    # todo use numpy downsample some function
+    ts = np.array(ts[::sample_rate])
+    xs = np.array(xs[::sample_rate])
+    ys = np.array(ys[::sample_rate])
+    zs = np.array(zs[::sample_rate])
+    frame_xs = np.array(frame_xs[::sample_rate])
+    frame_ys = np.array(frame_ys[::sample_rate])
+    frame_zs = np.array(frame_zs[::sample_rate])
 
     fig = plt.figure()
     ax = Axes3D(fig)
 
-    axis_min = min(min(xs), min(ys), min(zs))
-    axis_max = max(max(xs), max(ys), max(zs))
+    # TODO: center on the interesting part
+    axis_min = min(min(xs), min(ys), min(zs)) * 0.5
+    axis_max = max(max(xs), max(ys), max(zs)) * 0.5
     ax.set(
         xlim=(axis_min, axis_max), ylim=(axis_min, axis_max), zlim=(axis_min, axis_max)
     )
@@ -59,16 +67,32 @@ if __name__ == "__main__":
     frames = fps * ts[-1]
 
     def update_graph(frame):
-        frame = frame%frames
+        frame = frame % frames
         expected_t = frame * framerate
         t = np.argmax(expected_t < ts)
-        # print('exp t {}, t {}'.format(expected_t, t))
         line.set_data([xs[:t], ys[:t]])
         line.set_3d_properties(zs[:t])
+
+        def draw_quivers(vs, color, quiver_rate):
+            ax.quiver(
+                xs[::quiver_rate],
+                ys[::quiver_rate],
+                zs[::quiver_rate],
+                vs[:, 0][::quiver_rate],
+                vs[:, 1][::quiver_rate],
+                vs[:, 2][::quiver_rate],
+                color=color,
+                length=(axis_max - axis_min) * 0.03,
+            )
+
+        draw_quivers(frame_xs, 'r', 30)
+        draw_quivers(frame_ys, 'g', 30)
+        draw_quivers(frame_zs, 'b', 30)
         title.set_text("Tracker position at t={}".format(ts[t]))
         return title, line
 
     from matplotlib.animation import FuncAnimation
+
     # anim = FuncAnimation(fig, update_graph, len(xs), interval=framerate, blit=True)
     anim = FuncAnimation(fig, update_graph, len(xs), interval=framerate, blit=True)
 
