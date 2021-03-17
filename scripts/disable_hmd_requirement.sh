@@ -1,3 +1,4 @@
+#!/bin/sh
 STEAM_VRSETTINGS="$1"
 STEAM_NULL_DRIVER_VRSETTINGS="$2"
 if [ ! -f "$STEAM_VRSETTINGS" ]; then

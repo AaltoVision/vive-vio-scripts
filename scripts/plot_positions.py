@@ -34,9 +34,10 @@ if __name__ == "__main__":
         xs.append(j["position"]["x"])
         ys.append(j["position"]["y"])
         zs.append(j["position"]["z"])
-        frame_xs.append(np.array(j["rotation"]["col0"]))
-        frame_ys.append(np.array(j["rotation"]["col1"]))
-        frame_zs.append(np.array(j["rotation"]["col2"]))
+        if "rotation" in j:
+            frame_xs.append(np.array(j["rotation"]["col0"]))
+            frame_ys.append(np.array(j["rotation"]["col1"]))
+            frame_zs.append(np.array(j["rotation"]["col2"]))
     if f is not sys.stdin:
         f.close()
 
@@ -54,8 +55,10 @@ if __name__ == "__main__":
     ax = Axes3D(fig)
 
     # TODO: center on the interesting part
-    axis_min = min(min(xs), min(ys), min(zs)) * 0.5
-    axis_max = max(max(xs), max(ys), max(zs)) * 0.5
+    axis_min = min(min(xs), min(ys), min(zs))
+    axis_max = max(max(xs), max(ys), max(zs))
+    # axis_min = min(min(xs), min(ys), min(zs)) * 0.5
+    # axis_max = max(max(xs), max(ys), max(zs)) * 0.5
     ax.set(
         xlim=(axis_min, axis_max), ylim=(axis_min, axis_max), zlim=(axis_min, axis_max)
     )
@@ -85,9 +88,10 @@ if __name__ == "__main__":
                 length=(axis_max - axis_min) * 0.03,
             )
 
-        draw_quivers(frame_xs, 'r', 30)
-        draw_quivers(frame_ys, 'g', 30)
-        draw_quivers(frame_zs, 'b', 30)
+        if len(frame_xs) > 0:
+            draw_quivers(frame_xs, 'r', 30)
+            draw_quivers(frame_ys, 'g', 30)
+            draw_quivers(frame_zs, 'b', 30)
         title.set_text("Tracker position at t={}".format(ts[t]))
         return title, line
 
