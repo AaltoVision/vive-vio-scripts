@@ -1,6 +1,7 @@
 import argparse
 import sys
 import json
+import time
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
@@ -8,34 +9,36 @@ from mpl_toolkits.mplot3d import Axes3D
 
 class position_data:
     def __init__(self):
-        # self.ts = np.array([])
-        # self.xs = np.array([])
-        # self.ys = np.array([])
-        # self.zs = np.array([])
-        # self.frame_xs = np.array([])
-        # self.frame_ys = np.array([])
-        # self.frame_zs = np.array([])
-        self.ts = []
-        self.xs = []
-        self.ys = []
-        self.zs = []
-        self.frame_xs = []
-        self.frame_ys = []
-        self.frame_zs = []
+        self.ts = np.array(None)
+        self.xs = np.array(None)
+        self.ys = np.array(None)
+        self.zs = np.array(None)
+        self.frame_xs = np.array(None)
+        self.frame_ys = np.array(None)
+        self.frame_zs = np.array(None)
 
 
 def load_data(lines):
+    lines = list(lines)
+    n = len(lines)
     data = position_data()
-    for line in lines:
+    data.ts = np.zeros(n)
+    data.xs = np.zeros(n)
+    data.ys = np.zeros(n)
+    data.zs = np.zeros(n)
+    data.frame_xs = np.zeros((3, len(lines)))
+    data.frame_ys = np.zeros((3, len(lines)))
+    data.frame_zs = np.zeros((3, len(lines)))
+    for i, line in enumerate(lines):
         j = json.loads(line)
-        data.ts.append(j["time"])
-        data.xs.append(j["position"]["x"])
-        data.ys.append(j["position"]["y"])
-        data.zs.append(j["position"]["z"])
+        data.ts[i] = j["time"]
+        data.xs[i] = j["position"]["x"]
+        data.ys[i] = j["position"]["y"]
+        data.zs[i] = j["position"]["z"]
         if "rotation" in j:
-            data.frame_xs.append(np.array(j["rotation"]["col0"]))
-            data.frame_ys.append(np.array(j["rotation"]["col1"]))
-            data.frame_zs.append(np.array(j["rotation"]["col2"]))
+            data.frame_xs[:, i] = j["rotation"]["col0"]
+            data.frame_ys[:, i] = j["rotation"]["col1"]
+            data.frame_zs[:, i] = j["rotation"]["col2"]
     return data
 
 
@@ -104,9 +107,6 @@ if __name__ == "__main__":
     # Rotate the tracker data for better plot match (manually found)
     M = np.array(
         [
-            # [1, 0, 0, 0],
-            # [0, 1, 0, 0],
-            # [0, 0, 1, 0],
             [0, 0, -1, 0],
             [0, 1, 0, 0],
             [1, 0, 0, 0],
@@ -114,23 +114,47 @@ if __name__ == "__main__":
     )
     apply_transform(tracker, M)
 
-    ax.plot(
-        xs=tracker.xs,
-        ys=tracker.ys,
-        zs=tracker.zs,
+    # Make both data start at time t=0
+    tracker.ts = tracker.ts - tracker.ts[0]
+    device.ts = device.ts - device.ts[0]
+
+    axis_min = min(
+        min(tracker.xs),
+        min(tracker.ys),
+        min(tracker.zs),
+        min(device.xs),
+        min(device.ys),
+        min(device.zs),
+    )
+    axis_max = max(
+        max(tracker.xs),
+        max(tracker.ys),
+        max(tracker.zs),
+        max(device.xs),
+        max(device.ys),
+        max(device.zs),
+    )
+    ax.set(
+        xlim=(axis_min, axis_max), ylim=(axis_min, axis_max), zlim=(axis_min, axis_max)
+    )
+
+    tracker_plot = ax.plot(
+        xs=[],
+        ys=[],
+        zs=[],
         linestyle="-",
         marker="",
         color="r",
-        label="Tracker",
+        label="Tracker position",
     )
-    ax.plot(
-        xs=device.xs,
-        ys=device.ys,
-        zs=device.zs,
+    device_plot = ax.plot(
+        xs=[],
+        ys=[],
+        zs=[],
         linestyle="-",
         marker="",
         color="g",
-        label="Device",
+        label="VIO device position",
     )
     ax.plot(
         xs=[0.0],
@@ -142,47 +166,36 @@ if __name__ == "__main__":
         label="Origin",
     )
     ax.legend()
-    ax.set_xlabel('x (m)')
-    ax.set_ylabel('y (m)')
-    ax.set_zlabel('z (m)')
+    ax.set_xlabel("x (m)")
+    ax.set_ylabel("y (m)")
+    ax.set_zlabel("z (m)")
 
+    title = ax.set_title("Positions at t=0.00s")
+
+    def update_graph(frame):
+        seconds_since_anim_start = time.time() - anim_start
+
+        tracker_positions_until_now = np.where(tracker.ts < seconds_since_anim_start)
+        tracker_plot[0].set_data(
+            tracker.xs[tracker_positions_until_now],
+            tracker.ys[tracker_positions_until_now],
+        )
+        tracker_plot[0].set_3d_properties(tracker.zs[tracker_positions_until_now])
+
+        device_positions_until_now = np.where(device.ts < seconds_since_anim_start)
+        device_plot[0].set_data(
+            device.xs[device_positions_until_now], device.ys[device_positions_until_now]
+        )
+        device_plot[0].set_3d_properties(device.zs[device_positions_until_now])
+
+        title_text = "Tracker position at t={:.2f}s".format(seconds_since_anim_start)
+        title.set_text(title_text)
+        ax.set_title(title_text)
+        return tracker_plot[0], device_plot[0], title
+
+    from matplotlib.animation import FuncAnimation
+
+    anim = FuncAnimation(fig, update_graph, tracker.xs.shape[0], interval=15, blit=True)
+
+    anim_start = time.time()
     plt.show()
-
-    # line = ax.plot(xs, ys, zs, linestyle="-", marker="")[0]
-    # title = ax.set_title("Tracker position at t=0")
-    # fps = 60.0
-    # framerate = 1.0 / fps
-    # frames = fps * ts[-1]
-
-    # def update_graph(frame):
-    #     frame = frame % frames
-    #     expected_t = frame * framerate
-    #     t = np.argmax(expected_t < ts)
-    #     line.set_data([xs[:t], ys[:t]])
-    #     line.set_3d_properties(zs[:t])
-
-    #     def draw_quivers(vs, color, quiver_rate):
-    #         ax.quiver(
-    #             xs[::quiver_rate],
-    #             ys[::quiver_rate],
-    #             zs[::quiver_rate],
-    #             vs[:, 0][::quiver_rate],
-    #             vs[:, 1][::quiver_rate],
-    #             vs[:, 2][::quiver_rate],
-    #             color=color,
-    #             length=(axis_max - axis_min) * 0.03,
-    #         )
-
-    #     if len(frame_xs) > 0:
-    #         draw_quivers(frame_xs, "r", 30)
-    #         draw_quivers(frame_ys, "g", 30)
-    #         draw_quivers(frame_zs, "b", 30)
-    #     title.set_text("Tracker position at t={}".format(ts[t]))
-    #     return title, line
-
-    # from matplotlib.animation import FuncAnimation
-
-    # # anim = FuncAnimation(fig, update_graph, len(xs), interval=framerate, blit=True)
-    # anim = FuncAnimation(fig, update_graph, len(xs), interval=framerate, blit=True)
-
-    # plt.show()
