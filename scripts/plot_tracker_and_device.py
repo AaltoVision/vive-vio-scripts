@@ -23,6 +23,7 @@ class position_data:
         self.frame_ys = []
         self.frame_zs = []
 
+
 def load_data(lines):
     data = position_data()
     for line in lines:
@@ -36,6 +37,7 @@ def load_data(lines):
             data.frame_ys.append(np.array(j["rotation"]["col1"]))
             data.frame_zs.append(np.array(j["rotation"]["col2"]))
     return data
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -52,9 +54,9 @@ if __name__ == "__main__":
         help="Input file with device position data",
     )
     args = parser.parse_args()
-    with open(args.tracker_input, 'r') as f:
+    with open(args.tracker_input, "r") as f:
         tracker = load_data(f)
-    with open(args.device_input, 'r') as f:
+    with open(args.device_input, "r") as f:
         device = load_data(f)
 
     fig = plt.figure()
@@ -63,26 +65,86 @@ if __name__ == "__main__":
     def apply_transform(positions: position_data, M: np.array):
         ps = list(zip(positions.xs, positions.ys, positions.zs))
         for i in range(len(positions.xs)):
-            Mp = M @ np.array(ps[i])
-            # print('mp shape', Mp.shape)
+            Mp = M @ np.array([ps[i][0], ps[i][1], ps[i][2], 1.0])
             positions.xs[i] = Mp[0]
             positions.ys[i] = Mp[1]
             positions.zs[i] = Mp[2]
-    
-    # M = np.array([
-    #     [1,0,0],
-    #     [0,1,0],
-    #     [0,0,1],
-    #     ])
-    M = np.array([
-        [0,1,0],
-        [1,0,0],
-        [0,0,1],
-        ])
+
+    M = np.array(
+        [
+            [1, 0, 0, 0],
+            [0, 1, 0, 0],
+            [0, 0, 1, 0],
+        ]
+    )
     apply_transform(tracker, M)
 
-    ax.plot(xs=tracker.xs, ys=tracker.ys, zs=tracker.zs, linestyle="-", marker="", color="r")
-    ax.plot(xs=device.xs, ys=device.ys, zs=device.zs, linestyle="-", marker="", color="g")
+    # For both tracker and VIO data, remove first point from all points,
+    # so there is higher chance that the plots look similar.
+    # Note: probably less important for VIO data, since it considers beginning
+    # point as origin, while for tracker, origin is at one of the base stations,
+    # if room setup has not been done.
+    tracker_remove_first_pos = np.array(
+        [
+            [1, 0, 0, -tracker.xs[0]],
+            [0, 1, 0, -tracker.ys[0]],
+            [0, 0, 1, -tracker.zs[0]],
+        ]
+    )
+    apply_transform(tracker, tracker_remove_first_pos)
+    device_remove_first_pos = np.array(
+        [
+            [1, 0, 0, -device.xs[0]],
+            [0, 1, 0, -device.ys[0]],
+            [0, 0, 1, -device.zs[0]],
+        ]
+    )
+    apply_transform(device, device_remove_first_pos)
+
+    # Rotate the tracker data for better plot match (manually found)
+    M = np.array(
+        [
+            # [1, 0, 0, 0],
+            # [0, 1, 0, 0],
+            # [0, 0, 1, 0],
+            [0, 0, -1, 0],
+            [0, 1, 0, 0],
+            [1, 0, 0, 0],
+        ]
+    )
+    apply_transform(tracker, M)
+
+    ax.plot(
+        xs=tracker.xs,
+        ys=tracker.ys,
+        zs=tracker.zs,
+        linestyle="-",
+        marker="",
+        color="r",
+        label="Tracker",
+    )
+    ax.plot(
+        xs=device.xs,
+        ys=device.ys,
+        zs=device.zs,
+        linestyle="-",
+        marker="",
+        color="g",
+        label="Device",
+    )
+    ax.plot(
+        xs=[0.0],
+        ys=[0.0],
+        zs=[0.0],
+        linestyle="",
+        marker="o",
+        color="b",
+        label="Origin",
+    )
+    ax.legend()
+    ax.set_xlabel('x (m)')
+    ax.set_ylabel('y (m)')
+    ax.set_zlabel('z (m)')
 
     plt.show()
 
