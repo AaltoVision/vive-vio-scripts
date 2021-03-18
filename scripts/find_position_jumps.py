@@ -26,11 +26,14 @@ if __name__ == '__main__':
     # plot distances between p(t) and p(t+1) for each frame
     ps = [ np.array([x,y,z]) for (x,y,z) in zip(xs, ys, zs) ]
     ds = [ np.linalg.norm(ps[i] - ps[i+1]) for i in range(len(xs)-1) ]
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    # ax.plot(range(1, len(ps)), ds, '.')
-    ax.plot(ts[:-1], ds, '.')
-    plt.xlabel("time (s)")
-    plt.ylabel("distance (m)")
 
-    plt.show()
+    # print jumps
+    for i, t, d in zip(range(len(ts)), ts[:-1], ds):
+        if d > 0.3:
+            print('At t={}, jump of {:.2f}m'.format(t, d))
+            print('    ps[{}]: {}'.format(i, ps[i]))
+            print('    ps[{}]: {}'.format(i+1, ps[i+1]))
+            if (ps[i] == np.array([0.0, 0.0, 0.0])).all():
+                print('    delete until {0} (including {0})'.format(i))
+            if (ps[i+1] == np.array([0.0, 0.0, 0.0])).all():
+                print('    delete from', i+1)

@@ -42,7 +42,7 @@ if __name__ == "__main__":
         f.close()
 
     # downsample (note: much faster to use sample_rate=1 and downsample data beforehand)
-    sample_rate = int(args.sample_rate)
+    sample_rate = int(args.sample_rate or "1")
     ts = np.array(ts[::sample_rate])
     xs = np.array(xs[::sample_rate])
     ys = np.array(ys[::sample_rate])
