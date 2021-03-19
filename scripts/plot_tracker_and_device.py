@@ -9,10 +9,8 @@ from mpl_toolkits.mplot3d import Axes3D
 
 class position_data:
     def __init__(self):
-        self.ts = np.array(None)
-        self.xs = np.array(None)
-        self.ys = np.array(None)
-        self.zs = np.array(None)
+        self.ts = np.array(None)  # Time (seconds)
+        self.ps = np.array(None)  # Positions (x,y,z)
         self.frame_xs = np.array(None)
         self.frame_ys = np.array(None)
         self.frame_zs = np.array(None)
@@ -23,18 +21,18 @@ def load_data(lines):
     n = len(lines)
     data = position_data()
     data.ts = np.zeros(n)
-    data.xs = np.zeros(n)
-    data.ys = np.zeros(n)
-    data.zs = np.zeros(n)
-    data.frame_xs = np.zeros((3, len(lines)))
-    data.frame_ys = np.zeros((3, len(lines)))
-    data.frame_zs = np.zeros((3, len(lines)))
+    data.ps = np.zeros((3, n))
+    data.frame_xs = np.zeros((3, n))
+    data.frame_ys = np.zeros((3, n))
+    data.frame_zs = np.zeros((3, n))
     for i, line in enumerate(lines):
         j = json.loads(line)
         data.ts[i] = j["time"]
-        data.xs[i] = j["position"]["x"]
-        data.ys[i] = j["position"]["y"]
-        data.zs[i] = j["position"]["z"]
+        data.ps[:, i] = [
+            j["position"]["x"],
+            j["position"]["y"],
+            j["position"]["z"],
+        ]
         if "rotation" in j:
             data.frame_xs[:, i] = j["rotation"]["col0"]
             data.frame_ys[:, i] = j["rotation"]["col1"]
@@ -65,13 +63,11 @@ if __name__ == "__main__":
     fig = plt.figure()
     ax = Axes3D(fig)
 
-    def apply_transform(positions: position_data, M: np.array):
-        ps = list(zip(positions.xs, positions.ys, positions.zs))
-        for i in range(len(positions.xs)):
-            Mp = M @ np.array([ps[i][0], ps[i][1], ps[i][2], 1.0])
-            positions.xs[i] = Mp[0]
-            positions.ys[i] = Mp[1]
-            positions.zs[i] = Mp[2]
+    def transform_points(points: np.array, M: np.array):
+        n_points = points.shape[1]
+        points_h = np.concatenate((points, np.ones((1, n_points))))
+        transformed_points_h = M @ points_h
+        points[:, :] = transformed_points_h[:3, :]
 
     M = np.array(
         [
@@ -80,7 +76,7 @@ if __name__ == "__main__":
             [0, 0, 1, 0],
         ]
     )
-    apply_transform(tracker, M)
+    transform_points(tracker.ps, M)
 
     # For both tracker and VIO data, remove first point from all points,
     # so there is higher chance that the plots look similar.
@@ -89,20 +85,20 @@ if __name__ == "__main__":
     # if room setup has not been done.
     tracker_remove_first_pos = np.array(
         [
-            [1, 0, 0, -tracker.xs[0]],
-            [0, 1, 0, -tracker.ys[0]],
-            [0, 0, 1, -tracker.zs[0]],
+            [1, 0, 0, -tracker.ps[0, 0]],
+            [0, 1, 0, -tracker.ps[1, 0]],
+            [0, 0, 1, -tracker.ps[2, 0]],
         ]
     )
-    apply_transform(tracker, tracker_remove_first_pos)
+    transform_points(tracker.ps, tracker_remove_first_pos)
     device_remove_first_pos = np.array(
         [
-            [1, 0, 0, -device.xs[0]],
-            [0, 1, 0, -device.ys[0]],
-            [0, 0, 1, -device.zs[0]],
+            [1, 0, 0, -device.ps[0, 0]],
+            [0, 1, 0, -device.ps[1, 0]],
+            [0, 0, 1, -device.ps[2, 0]],
         ]
     )
-    apply_transform(device, device_remove_first_pos)
+    transform_points(device.ps, device_remove_first_pos)
 
     # Rotate the tracker data for better plot match (manually found)
     M = np.array(
@@ -112,27 +108,19 @@ if __name__ == "__main__":
             [1, 0, 0, 0],
         ]
     )
-    apply_transform(tracker, M)
+    transform_points(tracker.ps, M)
 
     # Make both data start at time t=0
     tracker.ts = tracker.ts - tracker.ts[0]
     device.ts = device.ts - device.ts[0]
 
     axis_min = min(
-        min(tracker.xs),
-        min(tracker.ys),
-        min(tracker.zs),
-        min(device.xs),
-        min(device.ys),
-        min(device.zs),
+        tracker.ps.min(),
+        device.ps.min(),
     )
     axis_max = max(
-        max(tracker.xs),
-        max(tracker.ys),
-        max(tracker.zs),
-        max(device.xs),
-        max(device.ys),
-        max(device.zs),
+        tracker.ps.max(),
+        device.ps.max(),
     )
     ax.set(
         xlim=(axis_min, axis_max), ylim=(axis_min, axis_max), zlim=(axis_min, axis_max)
@@ -173,29 +161,39 @@ if __name__ == "__main__":
     title = ax.set_title("Positions at t=0.00s")
 
     def update_graph(frame):
-        seconds_since_anim_start = time.time() - anim_start
+        # Time in seconds since animation start
+        t = time.time() - anim_start
 
-        tracker_positions_until_now = np.where(tracker.ts < seconds_since_anim_start)
+        tracker_positions_until_now = tracker.ps[
+            :, np.where(tracker.ts < t)[0]
+        ]
         tracker_plot[0].set_data(
-            tracker.xs[tracker_positions_until_now],
-            tracker.ys[tracker_positions_until_now],
+            tracker_positions_until_now[0, :],
+            tracker_positions_until_now[1, :],
         )
-        tracker_plot[0].set_3d_properties(tracker.zs[tracker_positions_until_now])
+        tracker_plot[0].set_3d_properties(
+            tracker_positions_until_now[2, :],
+        )
 
-        device_positions_until_now = np.where(device.ts < seconds_since_anim_start)
+        device_positions_until_now = device.ps[
+            :, np.where(device.ts < t)[0]
+        ]
         device_plot[0].set_data(
-            device.xs[device_positions_until_now], device.ys[device_positions_until_now]
+            device_positions_until_now[0, :],
+            device_positions_until_now[1, :],
         )
-        device_plot[0].set_3d_properties(device.zs[device_positions_until_now])
+        device_plot[0].set_3d_properties(
+            device_positions_until_now[2, :],
+        )
 
-        title_text = "Tracker position at t={:.2f}s".format(seconds_since_anim_start)
+        title_text = "Tracker position at t={:.2f}s".format(t)
         title.set_text(title_text)
         ax.set_title(title_text)
         return tracker_plot[0], device_plot[0], title
 
     from matplotlib.animation import FuncAnimation
 
-    anim = FuncAnimation(fig, update_graph, tracker.xs.shape[0], interval=15, blit=True)
-
+    # Plot tracker and VIO device trajectories as animation
+    anim = FuncAnimation(fig, update_graph, interval=15, blit=True)
     anim_start = time.time()
     plt.show()
