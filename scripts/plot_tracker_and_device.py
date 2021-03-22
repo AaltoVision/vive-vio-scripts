@@ -54,6 +54,26 @@ if __name__ == "__main__":
         dest="device_input",
         help="Input file with device position data",
     )
+    parser.add_argument(
+        "-a",
+        "--animate",
+        dest="animate",
+        help="Animate the plot by timestamps instead of showing whole data at once",
+        action='store_true'
+    )
+    parser.add_argument(
+        "--animation_speed",
+        dest="animation_speed",
+        help="Animation speed",
+        type=float,
+        default=1.0,
+    )
+    parser.add_argument(
+        "--loop",
+        dest="loop",
+        help="Loop animation",
+        action='store_true'
+    )
     args = parser.parse_args()
     with open(args.tracker_input, "r") as f:
         tracker = load_data(f)
@@ -162,11 +182,19 @@ if __name__ == "__main__":
 
     def update_graph(frame):
         # Time in seconds since animation start
-        t = time.time() - anim_start
+        t = (time.time() - anim_start) * args.animation_speed
 
-        tracker_positions_until_now = tracker.ps[
-            :, np.where(tracker.ts < t)[0]
-        ]
+        last_data_timestamp = max(tracker.ts.max(), device.ts.max())
+        if args.loop:
+            t = t % last_data_timestamp
+        else:
+            # Stop time at end
+            t = min(t, last_data_timestamp, device.ts.max())
+
+        if not args.animate:
+            t = last_data_timestamp
+
+        tracker_positions_until_now = tracker.ps[:, np.where(tracker.ts < t)[0]]
         tracker_plot[0].set_data(
             tracker_positions_until_now[0, :],
             tracker_positions_until_now[1, :],
@@ -175,9 +203,7 @@ if __name__ == "__main__":
             tracker_positions_until_now[2, :],
         )
 
-        device_positions_until_now = device.ps[
-            :, np.where(device.ts < t)[0]
-        ]
+        device_positions_until_now = device.ps[:, np.where(device.ts < t)[0]]
         device_plot[0].set_data(
             device_positions_until_now[0, :],
             device_positions_until_now[1, :],
