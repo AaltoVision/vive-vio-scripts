@@ -47,12 +47,14 @@ if __name__ == "__main__":
         "--tracker_input",
         dest="tracker_input",
         help="Input file with tracker position and rotation data",
+        required=True,
     )
     parser.add_argument(
         "-d",
         "--device_input",
         dest="device_input",
         help="Input file with device position data",
+        required=True,
     )
     parser.add_argument(
         "-a",

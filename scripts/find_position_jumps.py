@@ -29,7 +29,7 @@ if __name__ == '__main__':
 
     # print jumps
     for i, t, d in zip(range(len(ts)), ts[:-1], ds):
-        if d > 0.3:
+        if d > 0.2:
             print('At t={}, jump of {:.2f}m'.format(t, d))
             print('    ps[{}]: {}'.format(i, ps[i]))
             print('    ps[{}]: {}'.format(i+1, ps[i+1]))

@@ -8,4 +8,4 @@ if [ ! -f "$1" ]; then
     exit 1
 fi
 # touch "$2" && grep -ir arcore "$1" > "$2"
-touch "$2" && jq -c 'select(has("arcore")) | { position: .arcore.position, time: .time }' < "$1" > "$2"
+touch "$2" && jq -c 'select(has("arcore")) | { time: .time, position: .arcore.position, orientation: .arcore.orientation }' < "$1" > "$2"
