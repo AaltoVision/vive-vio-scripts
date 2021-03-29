@@ -83,56 +83,57 @@ if __name__ == "__main__":
         device.ps[:, 1:-1] - device.ps[:, 0:-2], axis=0, keepdims=True
     )
 
-    # Find M from 100th frame ( TODO: time sync first! and not nth data, but sample at 't'...)
+    # Find M from Nth tracker frame ( TODO: time sync first! and not nth data, but sample at 't'...)
+    N = 100
     M_tracker = np.identity(4)
-    M_tracker[0:3, 3] = tracker.ps[0:3, 100]
-    M_tracker[:3, 0] = tracker.frame_xs[:3, 100]
-    M_tracker[:3, 1] = tracker.frame_ys[:3, 100]
-    M_tracker[:3, 2] = tracker.frame_zs[:3, 100]
+    M_tracker[0:3, 3] = tracker.ps[0:3, N]
+    M_tracker[:3, 0] = tracker.frame_xs[:3, N]
+    M_tracker[:3, 1] = tracker.frame_ys[:3, N]
+    M_tracker[:3, 2] = tracker.frame_zs[:3, N]
     # print(M_tracker)
 
-    sync_device_to_tracker = 0.9 # device timestamps are 0.8s ahead of tracker timestamps
-
-    def tracker_idx_to_device_idx(n):
+    def tracker_idx_to_device_idx(n, sync_device_to_tracker):
         t = tracker.ts[n]
         return np.argmin( (device.ts + sync_device_to_tracker) < t )
 
-    corresponding_device_N = tracker_idx_to_device_idx(100)
-    print('corresponding_device_N', corresponding_device_N)
-    M_device = np.identity(4)
-    M_device[0:3, 3] = device.ps[0:3, corresponding_device_N]
-    M_device[:3, 0] = device.frame_xs[:3, corresponding_device_N]
-    M_device[:3, 1] = device.frame_ys[:3, corresponding_device_N]
-    M_device[:3, 2] = device.frame_zs[:3, corresponding_device_N]
-    # print(M_device)
-    # NOTE ds should be scaled by (ts[n] - ts[n-1]), since sampling freq is different
+    def sync_errors(sync: float):
+        corresponding_device_N = tracker_idx_to_device_idx(N, sync)
+        # print('corresponding_device_N', corresponding_device_N)
+        M_device = np.identity(4)
+        M_device[0:3, 3] = device.ps[0:3, corresponding_device_N]
+        M_device[:3, 0] = device.frame_xs[:3, corresponding_device_N]
+        M_device[:3, 1] = device.frame_ys[:3, corresponding_device_N]
+        M_device[:3, 2] = device.frame_zs[:3, corresponding_device_N]
+        # print(M_device)
+        # NOTE ds should be scaled by (ts[n] - ts[n-1]), since sampling freq is different
 
-    # Transform M
-    def transform_points(points: np.array, M: np.array):
-        n_points = points.shape[1]
-        points_h = np.concatenate((points, np.ones((1, n_points))))
-        transformed_points_h = M @ points_h
-        points[:, :] = transformed_points_h[:3, :]
+        M_device_to_tracker = M_tracker @ np.linalg.inv(M_device)
+        errors = []
+        transform_test_indices = [ 10*x for x in range(100) ] 
+        for tracker_idx in transform_test_indices:
+            device_idx = tracker_idx_to_device_idx(tracker_idx, sync)
+            tracker_point = tracker.ps[0:3, tracker_idx]
+            device_test_point = device.ps[0:3, device_idx]
+            test_point_in_tracker_space = M_device_to_tracker[:3, :3] @ device_test_point + M_device_to_tracker[0:3, 3]
+            dp = test_point_in_tracker_space - tracker_point
+            error = np.linalg.norm(dp)
+            # print('--- test N={}'.format(tracker_idx))
+            # print('    Tracker point:', tracker_point)
+            # print('    Transformed device point:', test_point_in_tracker_space)
+            # print('    |dp|:', error)
+            errors.append(error)
+        # print('Total error:', sum(errors))
+        # return sum(errors)
+        return np.mean(errors)
 
-    M_device_to_tracker = M_tracker @ np.linalg.inv(M_device)
-    errors = []
-    transform_test_indices = [ 10*x for x in range(100) ] 
-    for tracker_idx in transform_test_indices:
-        device_idx = tracker_idx_to_device_idx(tracker_idx)
-        print('--- test N={}'.format(tracker_idx))
-        tracker_point = tracker.ps[0:3, tracker_idx]
-        print('    Tracker point:', tracker_point)
-        device_test_point = device.ps[0:3, device_idx]
-        test_point_in_tracker_space = M_device_to_tracker[:3, :3] @ device_test_point + M_device_to_tracker[0:3, 3]
-        print('    Transformed device point:', test_point_in_tracker_space)
-        dp = test_point_in_tracker_space - tracker_point
-        error = np.linalg.norm(dp)
-        print('    |dp|:', error)
-        errors.append(error)
-    print('Total error:', sum(errors))
+    errors_per_sync = []
+    sync_candidates = np.linspace(0.0, 20.0, 20*2+1)
+    for sync in sync_candidates:
+        errors_per_sync.append(sync_errors(sync))
 
+    
     # Plot
-    fig, axs = plt.subplots(4, 1, constrained_layout=True)
+    fig, axs = plt.subplots(5, 1, constrained_layout=True)
 
     def plot_distances_by_time(
         ax, tracker_ds, device_ds, tracker_ts=None, device_ts=None
@@ -163,7 +164,8 @@ if __name__ == "__main__":
     )
 
     # Distances scaled by dt, time sync version
-    synced_device_ts = device.ts + sync_device_to_tracker
+    manual_good_sync_device_to_tracker = 0.9 # device timestamps are 0.8s ahead of tracker timestamps
+    synced_device_ts = device.ts + manual_good_sync_device_to_tracker
     tracker_dts = tracker.ts[1:-1] - tracker.ts[0:-2]
     synced_device_dts = synced_device_ts[1:-1] - synced_device_ts[0:-2]
     plot_distances_by_time(
@@ -174,18 +176,24 @@ if __name__ == "__main__":
         synced_device_ts[:-2],
     )
 
-    axs[3].plot(transform_test_indices, errors)
+    # axs[3].plot(transform_test_indices, errors)
+    axs[4].plot(sync_candidates, errors_per_sync)
+
+    axs[4].set_xlabel('tracker-device time offset (seconds)')
+    axs[4].set_ylabel('mean position error (meters)')
 
     axs[0].set_title(r"$|\delta p|$")
     axs[1].set_title(r"$|\delta p| / \delta t$")
-    axs[2].set_title(r"$|\delta p| / \delta t$, updated time sync {}s".format(sync_device_to_tracker))
-    axs[3].set_title(r"transform errors, total={:.3f}".format(sum(errors)))
+    axs[2].set_title(r"$|\delta p| / \delta t$, updated time sync {}s".format(manual_good_sync_device_to_tracker))
+    # axs[3].set_title(r"Transform errors, total={:.3f}".format(sum(errors)))
+    axs[4].set_title(r"Transform errors for syncs")
     axs[0].legend()
     axs[1].legend()
     axs[2].legend()
     axs[3].legend()
 
     plt.show()
+
 
     # def sample_indices(timestamps: np.ndarray, time_between_samples: float):
     #     indices = []
