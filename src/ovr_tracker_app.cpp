@@ -4,17 +4,17 @@
 
 #include "openvr.h"
 
+// TODO: possibly log real world time, not starting from t=0
+
 // Quick app that reads vr tracker data through OpenVR and outputs timestamp and position as lines of json to stdout
 int main(int argc, char *argv[])
 {
     auto vr_error = vr::VRInitError_None;
-    auto vr_system = vr::VR_Init( &vr_error, vr::VRApplication_Other );
-    //auto vr_system = vr::VR_Init( &vr_error, vr::VRApplication_Background );
-
+    auto vr_system = vr::VR_Init(&vr_error, vr::VRApplication_Other);
     if (vr_error != vr::VRInitError_None)
     {
-	std::printf("Unable to init VR runtime: %s\n", vr::VR_GetVRInitErrorAsEnglishDescription(vr_error));
-	return 1;
+        std::printf("Unable to init VR runtime: %s\n", vr::VR_GetVRInitErrorAsEnglishDescription(vr_error));
+        return 1;
     }
 
     auto trackers = std::vector<size_t>();
@@ -31,12 +31,15 @@ int main(int argc, char *argv[])
     auto all_poses = std::vector<vr::TrackedDevicePose_t>(vr::k_unMaxTrackedDeviceCount);
     auto t_start = clock::now();
     auto t_previous = clock::now();
+
     // TODO proper end condition, ctrl+c mostly works, but printf may not finish flush fully,
     // leaving an incomplete line at the end of data
     while (true)
     {
         auto t_now = clock::now();
-        // if ((t_now - t_previous).count() < (1./60.)*1'000'000'000) continue; // sample at 60Hz
+
+        // if ((t_now - t_previous).count() < (1./60.)*1'000'000'000) continue; // sample at ~60Hz
+
         vr_system->GetDeviceToAbsoluteTrackingPose(
             vr::TrackingUniverseSeated, 0.0f, all_poses.data(), (uint32_t)all_poses.size());
 
