@@ -136,11 +136,24 @@ if __name__ == "__main__":
 
     errors_per_sync = []
     M_per_sync = []
-    sync_candidates = np.linspace(0.0, 20.0, 20*2+1)
+    sync_candidates = np.linspace(-20.0, 20.0, 20*2*10*2+1)
     for sync in sync_candidates:
         errors, M = sync_errors(sync)
         errors_per_sync.append(errors)
         M_per_sync.append(M)
+    best_sync = sync_candidates[np.argmin(errors_per_sync)]
+    best_M = M_per_sync[np.argmin(errors_per_sync)]
+    # print('best_sync', best_sync)
+    # print('best_sync_error', min(errors_per_sync))
+    # print('best_M', best_M)
+
+    # # Temporarilly hack sync to 0.9, it is correct one in living_room_0 case
+    # i = np.where(np.abs(sync_candidates-0.7) < 0.001)[0][0]
+    # best_sync = sync_candidates[i]
+    # best_M = M_per_sync[i]
+    # print('best_sync', best_sync)
+    # print('best_sync_error', min(errors_per_sync))
+    # print('best_M', best_M)
 
     
     # Plot
@@ -175,8 +188,7 @@ if __name__ == "__main__":
     )
 
     # Distances scaled by dt, time sync version
-    manual_good_sync_device_to_tracker = 0.9 # device timestamps are 0.8s ahead of tracker timestamps
-    synced_device_ts = device.ts + manual_good_sync_device_to_tracker
+    synced_device_ts = device.ts + best_sync
     tracker_dts = tracker.ts[1:-1] - tracker.ts[0:-2]
     synced_device_dts = synced_device_ts[1:-1] - synced_device_ts[0:-2]
     plot_distances_by_time(
@@ -194,7 +206,7 @@ if __name__ == "__main__":
 
     axs[0].set_title(r"$|\delta p|$")
     axs[1].set_title(r"$|\delta p| / \delta t$")
-    axs[2].set_title(r"$|\delta p| / \delta t$, updated time sync {}s".format(manual_good_sync_device_to_tracker))
+    axs[2].set_title(r"$|\delta p| / \delta t$, updated time sync {}s".format(best_sync))
     axs[3].set_title(r"Transform errors for syncs")
     axs[0].legend()
     axs[1].legend()
@@ -203,8 +215,6 @@ if __name__ == "__main__":
     plt.show()
 
     if args.output_file is not None:
-        best_M = M_per_sync[np.argmin(errors_per_sync)]
-        print('best_M', best_M)
         output_lines = []
         with open(args.device_input, 'r') as input:
             for line in input:
@@ -218,6 +228,16 @@ if __name__ == "__main__":
                 j["position"]["x"] = transformed_p[0]
                 j["position"]["y"] = transformed_p[1]
                 j["position"]["z"] = transformed_p[2]
+                if "rotation" in j:
+                    c0 = best_M[:3, :3] @ np.array(j["rotation"]["col0"])
+                    c1 = best_M[:3, :3] @ np.array(j["rotation"]["col1"])
+                    c2 = best_M[:3, :3] @ np.array(j["rotation"]["col2"])
+                    j["rotation"] = {
+                        "col0": list(c0),
+                        "col1": list(c1),
+                        "col2": list(c2),
+                    }
+                j["time"] += best_sync
                 output_lines.append(json.dumps(j) + "\n")
         with open(args.output_file, 'w') as output:
             output.writelines(output_lines)

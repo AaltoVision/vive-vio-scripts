@@ -85,10 +85,6 @@ if __name__ == "__main__":
     fig = plt.figure()
     ax = Axes3D(fig)
 
-    # Make both data start at time t=0
-    tracker.ts = tracker.ts - tracker.ts[0]
-    device.ts = device.ts - device.ts[0]
-
     axis_min = min(
         tracker.ps.min(),
         device.ps.min(),

@@ -22,6 +22,15 @@ printf "Using device data \n\t$1\nand tracker data \n\t$2\nResults will go into\
 # 1. Strip out unnecessary parts from device data
 ./scripts/preprocess-vio-data.sh "$DEVICE_DATA_JSONL_FILE" "$OUTPUT_DIR"/device_data_time_pos_orientation_vio_space.jsonl
 
+# 1.5 Offset by first time (so that timestamps start from 0)
+# (needed so that plots and sync changes work correctly)
+FIRST_TIME=`head -n1 "$OUTPUT_DIR"/device_data_time_pos_orientation_vio_space.jsonl | jq -c ".time"`
+echo "Removing $FIRST_TIME from device timestamps"
+jq -c ".time = .time - $FIRST_TIME" "$OUTPUT_DIR"/device_data_time_pos_orientation_vio_space.jsonl \
+    > "$OUTPUT_DIR"/device_data_time_pos_orientation_vio_space.jsonl.tmp
+mv "$OUTPUT_DIR"/device_data_time_pos_orientation_vio_space.jsonl.tmp \
+   "$OUTPUT_DIR"/device_data_time_pos_orientation_vio_space.jsonl
+
 # 2. Change VIO-space pose matrix into usual camera matrix form
 # (viotester records pose in different form, see the script for explanation)
 python ./scripts/arcore_view_matrices_to_camera_matrices.py \
