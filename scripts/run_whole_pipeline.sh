@@ -58,7 +58,7 @@ python ./scripts/plot_tracker_and_device.py \
     --loop
 
 # 6. Sync device data to tracker data, and transform device data to tracking space
-echo "Finding time offset (sync) between device and tracker data " \
+echo "Finding time offset (sync) between device and tracker data" \
      "and transforming device poses into tracking space"
 python ./scripts/align_trajectories.py \
     -t "$OUTPUT_DIR"/tracker_downsampled.jsonl \

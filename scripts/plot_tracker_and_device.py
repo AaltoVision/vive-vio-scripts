@@ -131,13 +131,18 @@ if __name__ == "__main__":
 
     title = ax.set_title("Positions at t=0.00s")
 
+    # Note: timestamps may be negative
+    first_data_timestamp = min(tracker.ts.min(), device.ts.min())
+    last_data_timestamp = max(tracker.ts.max(), device.ts.max())
+    total_animation_length = last_data_timestamp - first_data_timestamp
+
     def update_graph(frame):
         # Time in seconds since animation start
         t = (time.time() - anim_start) * args.animation_speed
 
-        last_data_timestamp = max(tracker.ts.max(), device.ts.max())
         if args.loop:
-            t = t % last_data_timestamp
+            while t > last_data_timestamp:
+                t -= total_animation_length
         else:
             # Stop time at end
             t = min(t, last_data_timestamp, device.ts.max())
@@ -145,7 +150,7 @@ if __name__ == "__main__":
         if not args.animate:
             t = last_data_timestamp
 
-        tracker_positions_until_now = tracker.ps[:, np.where(tracker.ts < t)[0]]
+        tracker_positions_until_now = tracker.ps[:, np.where(tracker.ts <= t)[0]]
         tracker_plot[0].set_data(
             tracker_positions_until_now[0, :],
             tracker_positions_until_now[1, :],
@@ -154,7 +159,7 @@ if __name__ == "__main__":
             tracker_positions_until_now[2, :],
         )
 
-        device_positions_until_now = device.ps[:, np.where(device.ts < t)[0]]
+        device_positions_until_now = device.ps[:, np.where(device.ts <= t)[0]]
         device_plot[0].set_data(
             device_positions_until_now[0, :],
             device_positions_until_now[1, :],
