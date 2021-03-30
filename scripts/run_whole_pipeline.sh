@@ -23,6 +23,7 @@ printf "Using device data \n\t$1\nand tracker data \n\t$2\nResults will go into\
 ./scripts/preprocess-vio-data.sh "$DEVICE_DATA_JSONL_FILE" "$OUTPUT_DIR"/device_data_time_pos_orientation_vio_space.jsonl
 
 # 2. Change VIO-space pose matrix into usual camera matrix form
+# (viotester records pose in different form, see the script for explanation)
 python ./scripts/arcore_view_matrices_to_camera_matrices.py \
     < "$OUTPUT_DIR"/device_data_time_pos_orientation_vio_space.jsonl \
     > "$OUTPUT_DIR"/device_data_time_pos_rotation_fixed_space.jsonl
@@ -38,18 +39,8 @@ sed -i '$d' "$OUTPUT_DIR"/tracker_data_no_last_line.jsonl
 echo "Reporting position jumps in $OUTPUT_DIR/tracker_data_downsampled.jsonl:"
 python ./scripts/find_position_jumps.py -i "$OUTPUT_DIR"/tracker_data_downsampled.jsonl
 
-# # TEMPORARY, delete line 1339 onwards (zeroes)
-# sed -i '1339,$d' "$OUTPUT_DIR"/tracker_data_downsampled.jsonl
-
-# echo "TEMPORARY DEV STEP: remove first 4 seconds of tracker data"
-# jq -c 'select(.time>4.0)' "$OUTPUT_DIR"/tracker_data_downsampled.jsonl > "$OUTPUT_DIR"/tracker_missing_3s.jsonl
-# mv "$OUTPUT_DIR"/tracker_missing_3s.jsonl "$OUTPUT_DIR"/tracker_data_downsampled.jsonl
-
-# TODO: possibly make device data start from t=0? or maybe not, if there are many devices then original t is useful (they probably have nearly same clocks)
-# TODO: actually, if we just record world time data in the tracker data, that would make lots of sense...
-
 # 5. Plot results original trajectories
-echo "Plotting results non-synced non-transformed results"
+echo "Plotting non-synced non-transformed VIO trajectory vs. tracker"
 python ./scripts/plot_tracker_and_device.py \
     -t "$OUTPUT_DIR"/tracker_data_downsampled.jsonl \
     -d "$OUTPUT_DIR"/device_data_time_pos_rotation_fixed_space.jsonl \
@@ -57,26 +48,16 @@ python ./scripts/plot_tracker_and_device.py \
     --animation_speed 3 \
     --loop
 
-# # 6. Find timing (sync) to make device data and tracker data starting times match
-# echo "Finding time offset between device and tracker data"
-# python ./scripts/align_trajectories.py \
-#     -t "$OUTPUT_DIR"/tracker_data_downsampled.jsonl \
-#     -d "$OUTPUT_DIR"/device_data_time_pos_rotation_fixed_space.jsonl
-
-# X.
-# - Plot original trajectories
-# - Find timing through biggest distance spike (simple, for now)
-# - Plot trajectories but using the timing sync
-# - Find M, not global optimization but just from that spike (or right before, or right after?)
-# - Transform device data into tracker space with M
-# - Plot tracker trajectory and transformed-into-tracker-space device trajectory
-echo "Finding time offset between device and tracker data"
+# 6. Sync device data to tracker data, and transform device data to tracking space
+echo "Finding time offset (sync) between device and tracker data " \
+     "and transforming device poses into tracking space"
 python ./scripts/align_trajectories.py \
     -t "$OUTPUT_DIR"/tracker_data_downsampled.jsonl \
     -d "$OUTPUT_DIR"/device_data_time_pos_rotation_fixed_space.jsonl \
     -o "$OUTPUT_DIR"/final_device_data.jsonl
 
-echo "Plotting results synced transformed results"
+# 7. Plot results
+echo "Plotting synced transformed VIO trajectory vs. tracker"
 python ./scripts/plot_tracker_and_device.py \
     -t "$OUTPUT_DIR"/tracker_data_downsampled.jsonl \
     -d "$OUTPUT_DIR"/final_device_data.jsonl \
@@ -85,6 +66,3 @@ python ./scripts/plot_tracker_and_device.py \
     --loop
 
 echo "Finished"
-
-
-

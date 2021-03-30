@@ -187,7 +187,6 @@ if __name__ == "__main__":
         synced_device_ts[:-2],
     )
 
-    # axs[3].plot(transform_test_indices, errors)
     axs[3].plot(sync_candidates, errors_per_sync)
 
     axs[3].set_xlabel('tracker-device time offset (seconds)')
@@ -200,7 +199,6 @@ if __name__ == "__main__":
     axs[0].legend()
     axs[1].legend()
     axs[2].legend()
-    # axs[3].legend()
 
     plt.show()
 
@@ -223,18 +221,3 @@ if __name__ == "__main__":
                 output_lines.append(json.dumps(j) + "\n")
         with open(args.output_file, 'w') as output:
             output.writelines(output_lines)
-
-    # def sample_indices(timestamps: np.ndarray, time_between_samples: float):
-    #     indices = []
-    #     target_t = timestamps[0]
-    #     for i, t in enumerate(timestamps):
-    #         while t >= target_t:
-    #             indices.append(i)
-    #             target_t += time_between_samples
-    #     return indices
-
-    # fps = 60
-    # idx_tracker = sample_indices(tracker.ts, 1./fps)
-    # print('idx tracker:', len(idx_tracker))
-    # idx_device = sample_indices(device.ts, 1./fps)
-    # print('idx tracker:', len(idx_device))
