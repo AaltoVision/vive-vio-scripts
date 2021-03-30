@@ -91,46 +91,46 @@ if __name__ == "__main__":
         transformed_points_h = M @ points_h
         points[:, :] = transformed_points_h[:3, :]
 
-    M = np.array(
-        [
-            [1, 0, 0, 0],
-            [0, 1, 0, 0],
-            [0, 0, 1, 0],
-        ]
-    )
-    transform_points(tracker.ps, M)
+    # M = np.array(
+    #     [
+    #         [1, 0, 0, 0],
+    #         [0, 1, 0, 0],
+    #         [0, 0, 1, 0],
+    #     ]
+    # )
+    # transform_points(tracker.ps, M)
 
-    # For both tracker and VIO data, remove first point from all points,
-    # so there is higher chance that the plots look similar.
-    # Note: probably less important for VIO data, since it considers beginning
-    # point as origin, while for tracker, origin is at one of the base stations,
-    # if room setup has not been done.
-    tracker_remove_first_pos = np.array(
-        [
-            [1, 0, 0, -tracker.ps[0, 0]],
-            [0, 1, 0, -tracker.ps[1, 0]],
-            [0, 0, 1, -tracker.ps[2, 0]],
-        ]
-    )
-    transform_points(tracker.ps, tracker_remove_first_pos)
-    device_remove_first_pos = np.array(
-        [
-            [1, 0, 0, -device.ps[0, 0]],
-            [0, 1, 0, -device.ps[1, 0]],
-            [0, 0, 1, -device.ps[2, 0]],
-        ]
-    )
-    transform_points(device.ps, device_remove_first_pos)
+    # # For both tracker and VIO data, remove first point from all points,
+    # # so there is higher chance that the plots look similar.
+    # # Note: probably less important for VIO data, since it considers beginning
+    # # point as origin, while for tracker, origin is at one of the base stations,
+    # # if room setup has not been done.
+    # tracker_remove_first_pos = np.array(
+    #     [
+    #         [1, 0, 0, -tracker.ps[0, 0]],
+    #         [0, 1, 0, -tracker.ps[1, 0]],
+    #         [0, 0, 1, -tracker.ps[2, 0]],
+    #     ]
+    # )
+    # transform_points(tracker.ps, tracker_remove_first_pos)
+    # device_remove_first_pos = np.array(
+    #     [
+    #         [1, 0, 0, -device.ps[0, 0]],
+    #         [0, 1, 0, -device.ps[1, 0]],
+    #         [0, 0, 1, -device.ps[2, 0]],
+    #     ]
+    # )
+    # transform_points(device.ps, device_remove_first_pos)
 
-    # Rotate the tracker data for better plot match (manually found)
-    M = np.array(
-        [
-            [0, 0, -1, 0],
-            [0, 1, 0, 0],
-            [1, 0, 0, 0],
-        ]
-    )
-    transform_points(tracker.ps, M)
+    # # Rotate the tracker data for better plot match (manually found)
+    # M = np.array(
+    #     [
+    #         [0, 0, -1, 0],
+    #         [0, 1, 0, 0],
+    #         [1, 0, 0, 0],
+    #     ]
+    # )
+    # transform_points(tracker.ps, M)
 
     # Make both data start at time t=0
     tracker.ts = tracker.ts - tracker.ts[0]

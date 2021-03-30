@@ -35,6 +35,8 @@ def load_data(lines):
             j["position"]["y"],
             j["position"]["z"],
         ]
+        # TODO: probably tracker data should come out as quaternions, and
+        # device data should be quaternion like before (although transformed into camera matrix still)
         if "rotation" in j:
             data.frame_xs[:, i] = j["rotation"]["col0"]
             data.frame_ys[:, i] = j["rotation"]["col1"]
@@ -57,6 +59,12 @@ if __name__ == "__main__":
         dest="device_input",
         help="Input file with device position data",
         required=True,
+    )
+    parser.add_argument(
+        "-o",
+        "--output_file",
+        dest="output_file",
+        help="Device data transformed into tracking space",
     )
     args = parser.parse_args()
     with open(args.tracker_input, "r") as f:
@@ -124,16 +132,19 @@ if __name__ == "__main__":
             errors.append(error)
         # print('Total error:', sum(errors))
         # return sum(errors)
-        return np.mean(errors)
+        return np.mean(errors), M_device_to_tracker
 
     errors_per_sync = []
+    M_per_sync = []
     sync_candidates = np.linspace(0.0, 20.0, 20*2+1)
     for sync in sync_candidates:
-        errors_per_sync.append(sync_errors(sync))
+        errors, M = sync_errors(sync)
+        errors_per_sync.append(errors)
+        M_per_sync.append(M)
 
     
     # Plot
-    fig, axs = plt.subplots(5, 1, constrained_layout=True)
+    fig, axs = plt.subplots(4, 1, constrained_layout=True)
 
     def plot_distances_by_time(
         ax, tracker_ds, device_ds, tracker_ts=None, device_ts=None
@@ -177,23 +188,41 @@ if __name__ == "__main__":
     )
 
     # axs[3].plot(transform_test_indices, errors)
-    axs[4].plot(sync_candidates, errors_per_sync)
+    axs[3].plot(sync_candidates, errors_per_sync)
 
-    axs[4].set_xlabel('tracker-device time offset (seconds)')
-    axs[4].set_ylabel('mean position error (meters)')
+    axs[3].set_xlabel('tracker-device time offset (seconds)')
+    axs[3].set_ylabel('mean position error (meters)')
 
     axs[0].set_title(r"$|\delta p|$")
     axs[1].set_title(r"$|\delta p| / \delta t$")
     axs[2].set_title(r"$|\delta p| / \delta t$, updated time sync {}s".format(manual_good_sync_device_to_tracker))
-    # axs[3].set_title(r"Transform errors, total={:.3f}".format(sum(errors)))
-    axs[4].set_title(r"Transform errors for syncs")
+    axs[3].set_title(r"Transform errors for syncs")
     axs[0].legend()
     axs[1].legend()
     axs[2].legend()
-    axs[3].legend()
+    # axs[3].legend()
 
     plt.show()
 
+    if args.output_file is not None:
+        best_M = M_per_sync[np.argmin(errors_per_sync)]
+        print('best_M', best_M)
+        output_lines = []
+        with open(args.device_input, 'r') as input:
+            for line in input:
+                j = json.loads(line)
+                p = np.array([
+                    j["position"]["x"],
+                    j["position"]["y"],
+                    j["position"]["z"],
+                ])
+                transformed_p  = best_M[:3, :3] @ p + best_M[:3, 3]
+                j["position"]["x"] = transformed_p[0]
+                j["position"]["y"] = transformed_p[1]
+                j["position"]["z"] = transformed_p[2]
+                output_lines.append(json.dumps(j) + "\n")
+        with open(args.output_file, 'w') as output:
+            output.writelines(output_lines)
 
     # def sample_indices(timestamps: np.ndarray, time_between_samples: float):
     #     indices = []
