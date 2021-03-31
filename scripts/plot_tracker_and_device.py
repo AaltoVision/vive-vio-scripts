@@ -179,3 +179,12 @@ if __name__ == "__main__":
     anim = FuncAnimation(fig, update_graph, interval=15, blit=True)
     anim_start = time.time()
     plt.show()
+
+    # import math
+    # import matplotlib.animation as animation
+    # Writer = animation.writers['ffmpeg']
+    # writer = Writer(fps=15, metadata=dict(artist='Me'), bitrate=1800)
+    # frames = int(math.ceil(total_animation_length * 1.0 / 0.015))
+    # anim = FuncAnimation(fig, update_graph, frames, interval=15, blit=True)
+    # anim_start = time.time()
+    # anim.save('results/trajectory{}.mp4'.format(int(time.time())), writer=writer)

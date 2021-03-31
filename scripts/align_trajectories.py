@@ -77,10 +77,9 @@ if __name__ == "__main__":
     # so that should actually be good info to keep and use almost directly (maybe small fine-tuning time sync still,
     # since clocks are probably a little bit different)
 
+    # TODO make sure this is not needed, and delete
     tracker.ts -= tracker.ts[0]
     device.ts -= device.ts[0]
-
-    # def plot_distances_and_time_sync(tracker, device):
 
     # timesync: maybe just cosine similarity, or something (minus mean, normalize, then dot)
 
@@ -91,20 +90,19 @@ if __name__ == "__main__":
         device.ps[:, 1:-1] - device.ps[:, 0:-2], axis=0, keepdims=True
     )
 
-    # Find M from Nth tracker frame ( TODO: time sync first! and not nth data, but sample at 't'...)
-    N = 100
-    M_tracker = np.identity(4)
-    M_tracker[0:3, 3] = tracker.ps[0:3, N]
-    M_tracker[:3, 0] = tracker.frame_xs[:3, N]
-    M_tracker[:3, 1] = tracker.frame_ys[:3, N]
-    M_tracker[:3, 2] = tracker.frame_zs[:3, N]
-    # print(M_tracker)
-
     def tracker_idx_to_device_idx(n, sync_device_to_tracker):
         t = tracker.ts[n]
         return np.argmin( (device.ts + sync_device_to_tracker) < t )
 
-    def sync_errors(sync: float):
+    def sync_errors(sync: float, N: int):
+        # Find M from Nth tracker frame
+        M_tracker = np.identity(4)
+        M_tracker[0:3, 3] = tracker.ps[0:3, N]
+        M_tracker[:3, 0] = tracker.frame_xs[:3, N]
+        M_tracker[:3, 1] = tracker.frame_ys[:3, N]
+        M_tracker[:3, 2] = tracker.frame_zs[:3, N]
+        # print(M_tracker)
+
         corresponding_device_N = tracker_idx_to_device_idx(N, sync)
         # print('corresponding_device_N', corresponding_device_N)
         M_device = np.identity(4)
@@ -124,28 +122,23 @@ if __name__ == "__main__":
             device_test_point = device.ps[0:3, device_idx]
             test_point_in_tracker_space = M_device_to_tracker[:3, :3] @ device_test_point + M_device_to_tracker[0:3, 3]
             dp = test_point_in_tracker_space - tracker_point
+            # TODO: error is not really fully error, there is supposed to be a constant offset
+            # between tracker and device pose in real-world coords.
+            # However, seems useful to minimize.
             error = np.linalg.norm(dp)
-            # print('--- test N={}'.format(tracker_idx))
-            # print('    Tracker point:', tracker_point)
-            # print('    Transformed device point:', test_point_in_tracker_space)
-            # print('    |dp|:', error)
             errors.append(error)
-        # print('Total error:', sum(errors))
-        # return sum(errors)
         return np.mean(errors), M_device_to_tracker
 
     errors_per_sync = []
     M_per_sync = []
-    sync_candidates = np.linspace(-20.0, 20.0, 20*2*10*2+1)
+    sync_candidates = np.linspace(-20.0, 20.0, 1001)
     for sync in sync_candidates:
-        errors, M = sync_errors(sync)
+        errors, M = sync_errors(sync, 100)
         errors_per_sync.append(errors)
         M_per_sync.append(M)
     best_sync = sync_candidates[np.argmin(errors_per_sync)]
     best_M = M_per_sync[np.argmin(errors_per_sync)]
-    # print('best_sync', best_sync)
-    # print('best_sync_error', min(errors_per_sync))
-    # print('best_M', best_M)
+    print('Optimal sync error:', min(errors_per_sync))
 
     # # Temporarilly hack sync to 0.9, it is correct one in living_room_0 case
     # i = np.where(np.abs(sync_candidates-0.7) < 0.001)[0][0]
@@ -157,7 +150,7 @@ if __name__ == "__main__":
 
     
     # Plot
-    fig, axs = plt.subplots(4, 1, constrained_layout=True)
+    fig, axs = plt.subplots(3, 1, constrained_layout=True)
 
     def plot_distances_by_time(
         ax, tracker_ds, device_ds, tracker_ts=None, device_ts=None
@@ -169,23 +162,28 @@ if __name__ == "__main__":
         ax.plot(tracker_ts, tracker_ds[0, :], "-", color="r", label='Tracker')
         ax.plot(device_ts, device_ds[0, :], "-", color="g", label='Device')
 
-    # Original distances
-    plot_distances_by_time(
-        axs[0], tracker_ds, device_ds, tracker.ts[:-2], device.ts[:-2]
-    )
-
     # Distances scaled by dt
     tracker_dts = tracker.ts[1:-1] - tracker.ts[0:-2]
     device_dts = device.ts[1:-1] - device.ts[0:-2]
     assert((tracker_dts > 0.0).all())
     assert((device_dts > 0.0).all())
     plot_distances_by_time(
-        axs[1],
+        axs[0],
         tracker_ds / tracker_dts,
         device_ds / device_dts,
         tracker.ts[:-2],
         device.ts[:-2],
     )
+    # axs[0].set_title(r"$|\delta p| / \delta t$")
+    axs[0].set_title(r"Original data")
+    axs[0].set_xlabel('time (s)')
+    axs[0].set_ylabel('speed (m/s)'.format(best_sync))
+    axs[0].legend()
+
+    axs[1].plot(sync_candidates, errors_per_sync)
+    axs[1].set_title('Transform errors for syncs')
+    axs[1].set_xlabel('tracker-device time offset (seconds)')
+    axs[1].set_ylabel('mean position error (meters)')
 
     # Distances scaled by dt, time sync version
     synced_device_ts = device.ts + best_sync
@@ -198,19 +196,23 @@ if __name__ == "__main__":
         tracker.ts[:-2],
         synced_device_ts[:-2],
     )
-
-    axs[3].plot(sync_candidates, errors_per_sync)
-
-    axs[3].set_xlabel('tracker-device time offset (seconds)')
-    axs[3].set_ylabel('mean position error (meters)')
-
-    axs[0].set_title(r"$|\delta p|$")
-    axs[1].set_title(r"$|\delta p| / \delta t$")
-    axs[2].set_title(r"$|\delta p| / \delta t$, updated time sync {}s".format(best_sync))
-    axs[3].set_title(r"Transform errors for syncs")
-    axs[0].legend()
-    axs[1].legend()
+    # axs[2].set_title(r"$|\delta p| / \delta t$, updated time sync {:.2f}s".format(best_sync))
+    axs[2].set_title("sync = {:.2f}s".format(best_sync))
+    axs[2].set_xlabel('time (s)')
+    axs[2].set_ylabel('speed (m/s)'.format(best_sync))
     axs[2].legend()
+
+    # dev_indices = [tracker_idx_to_device_idx(i, best_sync) for i in range(len(tracker.ts))]
+    # device_transformed_ps = np.zeros(device.ps.shape)
+    # for i in range(device_transformed_ps.shape[1]):
+    #     p = device_transformed_ps[:3, i]
+    #     p = best_M[:3, :3] @ p + best_M[:3, 3]
+    #     device_transformed_ps[:3, i] = p
+    # ds = [np.linalg.norm(tracker.ps[:3, t_i] - device_transformed_ps[:3, d_i]) for t_i, d_i in enumerate(dev_indices)]
+    # axs[3].plot(tracker.ts, ds, label="distance between tracker points and transformed+synced device points")
+
+    # Possible plots: best sync for different Ns, final distances between tracker
+    # and transformed device positions
 
     plt.show()
 

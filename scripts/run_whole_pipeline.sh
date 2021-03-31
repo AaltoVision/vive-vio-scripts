@@ -43,10 +43,10 @@ cp "$TRACKER_DATA_JSONL_FILE" "$OUTPUT_DIR"/tracker_trimmed.jsonl
 sed -i '$d' "$OUTPUT_DIR"/tracker_trimmed.jsonl
 ./scripts/downsample.sh "$TRACKER_DOWNSAMPLE_RATE" "$OUTPUT_DIR"/tracker_trimmed.jsonl > "$OUTPUT_DIR"/tracker_downsampled.jsonl
 
-# 4. Check if there are missing data parts in tracker data (reports 'zero' pose), and remove them
-# TODO: automatically remove, instead of just reporting them
-echo "Reporting position jumps in $OUTPUT_DIR/tracker_downsampled.jsonl:"
-python ./scripts/find_position_jumps.py -i "$OUTPUT_DIR"/tracker_downsampled.jsonl
+# # 4. Check if there are missing data parts in tracker data (reports 'zero' pose), and remove them
+# # TODO: automatically remove, instead of just reporting them
+# echo "Reporting position jumps in $OUTPUT_DIR/tracker_downsampled.jsonl:"
+# python ./scripts/find_position_jumps.py -i "$OUTPUT_DIR"/tracker_downsampled.jsonl
 
 # 5. Plot results original trajectories
 echo "Plotting non-synced non-transformed VIO trajectory vs. tracker"
