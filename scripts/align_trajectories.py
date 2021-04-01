@@ -7,6 +7,7 @@ import time
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
+import math
 
 
 class pose_data:
@@ -122,25 +123,40 @@ if __name__ == "__main__":
             device_test_point = device.ps[0:3, device_idx]
             test_point_in_tracker_space = M_device_to_tracker[:3, :3] @ device_test_point + M_device_to_tracker[0:3, 3]
             dp = test_point_in_tracker_space - tracker_point
-            # TODO: error is not really fully error, there is supposed to be a constant offset
+            # TODO: error is not really fully error, there is supposed to be a constant distance
             # between tracker and device pose in real-world coords.
+            # Perhaps we should be comparing to the mean? (variance)
             # However, seems useful to minimize.
             error = np.linalg.norm(dp)
             errors.append(error)
         return np.mean(errors), M_device_to_tracker
 
+    # Try different sync candidates, pick one that minimizes average distance from
+    # transformed device position to the tracker position.
+    # Currently for the transform we just try some pairs of tracker and device poses,
+    # and calculate M directly from that (instead of some global optimization that would
+    # minimize total error when considering the whole trajectories).
     errors_per_sync = []
     M_per_sync = []
     sync_candidates = np.linspace(-20.0, 20.0, 1001)
+    # TODO more intelligent picking
+    N_candidates = [math.floor(i * 0.2 * tracker.ts.shape[0]) for i in range(1, 5) ]
+    print('N_candidates:', N_candidates)
     for sync in sync_candidates:
-        errors, M = sync_errors(sync, 100)
-        errors_per_sync.append(errors)
-        M_per_sync.append(M)
+        sync_errors_for_N = []
+        Ms_for_N = []
+        for N in N_candidates:
+            mean_error, M = sync_errors(sync, N)
+            sync_errors_for_N.append(mean_error)
+            Ms_for_N.append(M)
+        best_N_index = np.argmin(sync_errors_for_N)
+        errors_per_sync.append(sync_errors_for_N[best_N_index])
+        M_per_sync.append(Ms_for_N[best_N_index])
     best_sync = sync_candidates[np.argmin(errors_per_sync)]
     best_M = M_per_sync[np.argmin(errors_per_sync)]
     print('Optimal sync error:', min(errors_per_sync))
 
-    # # Temporarilly hack sync to 0.9, it is correct one in living_room_0 case
+    # # Temporarilly hack sync to correct one in living_room_0 case
     # i = np.where(np.abs(sync_candidates-0.7) < 0.001)[0][0]
     # best_sync = sync_candidates[i]
     # best_M = M_per_sync[i]
