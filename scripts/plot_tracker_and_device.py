@@ -40,6 +40,8 @@ def load_data(lines):
     return data
 
 
+# TODO: might not need to treat tracker input as a separate thing from VIO inputs
+# (all are handled the same currently)
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -53,6 +55,7 @@ if __name__ == "__main__":
         "-d",
         "--device_input",
         dest="device_input",
+        action='append',
         help="Input file with device position data",
         required=True,
     )
@@ -79,19 +82,21 @@ if __name__ == "__main__":
     args = parser.parse_args()
     with open(args.tracker_input, "r") as f:
         tracker = load_data(f)
-    with open(args.device_input, "r") as f:
-        device = load_data(f)
+    devices = []
+    for device_file in args.device_input:
+        with open(device_file, "r") as f:
+            devices.append(load_data(f))
 
     fig = plt.figure()
     ax = Axes3D(fig)
 
     axis_min = min(
         tracker.ps.min(),
-        device.ps.min(),
+        min([device.ps.min() for device in devices])
     )
     axis_max = max(
         tracker.ps.max(),
-        device.ps.max(),
+        max([device.ps.max() for device in devices])
     )
     ax.set(
         xlim=(axis_min, axis_max), ylim=(axis_min, axis_max), zlim=(axis_min, axis_max)
@@ -103,25 +108,22 @@ if __name__ == "__main__":
         zs=[],
         linestyle="-",
         marker="",
-        color="r",
-        label="Tracker position",
+        label=args.tracker_input,
     )
-    device_plot = ax.plot(
+    device_plots = [ax.plot(
         xs=[],
         ys=[],
         zs=[],
         linestyle="-",
         marker="",
-        color="g",
-        label="VIO device position",
-    )
+        label=filename,
+    ) for filename in args.device_input]
     ax.plot(
         xs=[0.0],
         ys=[0.0],
         zs=[0.0],
         linestyle="",
         marker="o",
-        color="b",
         label="Origin",
     )
     ax.legend()
@@ -132,8 +134,8 @@ if __name__ == "__main__":
     title = ax.set_title("Positions at t=0.00s")
 
     # Note: timestamps may be negative
-    first_data_timestamp = min(tracker.ts.min(), device.ts.min())
-    last_data_timestamp = max(tracker.ts.max(), device.ts.max())
+    first_data_timestamp = min(tracker.ts.min(), min([d.ts.min() for d in devices]))
+    last_data_timestamp = max(tracker.ts.max(), max([d.ts.max() for d in devices]))
     total_animation_length = last_data_timestamp - first_data_timestamp
 
     def update_graph(frame):
@@ -145,7 +147,7 @@ if __name__ == "__main__":
                 t -= total_animation_length
         else:
             # Stop time at end
-            t = min(t, last_data_timestamp, device.ts.max())
+            t = min(t, last_data_timestamp, last_data_timestamp)
 
         if not args.animate:
             t = last_data_timestamp
@@ -159,19 +161,20 @@ if __name__ == "__main__":
             tracker_positions_until_now[2, :],
         )
 
-        device_positions_until_now = device.ps[:, np.where(device.ts <= t)[0]]
-        device_plot[0].set_data(
-            device_positions_until_now[0, :],
-            device_positions_until_now[1, :],
-        )
-        device_plot[0].set_3d_properties(
-            device_positions_until_now[2, :],
-        )
+        for plot, device in zip(device_plots, devices):
+            device_positions_until_now = device.ps[:, np.where(device.ts <= t)[0]]
+            plot[0].set_data(
+                device_positions_until_now[0, :],
+                device_positions_until_now[1, :],
+            )
+            plot[0].set_3d_properties(
+                device_positions_until_now[2, :],
+            )
 
-        title_text = "Tracker position at t={:.2f}s".format(t)
+        title_text = "Positions at t={:.2f}s".format(t)
         title.set_text(title_text)
         ax.set_title(title_text)
-        return tracker_plot[0], device_plot[0], title
+        return tracker_plot[0], *[plot[0] for plot in device_plots], title
 
     from matplotlib.animation import FuncAnimation
 
