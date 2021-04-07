@@ -13,7 +13,7 @@ if [ ! -f "$STEAM_VRSETTINGS" ]; then
     exit 1
 fi
 if [ ! -f "$STEAM_NULL_DRIVER_VRSETTINGS" ]; then
-    echo "$STEAM_VRSETTINGS" is not a file!
+    echo "$STEAM_NULL_DRIVER_VRSETTINGS" is not a file!
     exit 1
 fi
 echo "Editing $STEAM_VRSETTINGS and $STEAM_NULL_DRIVER_VRSETTINGS"

@@ -15,7 +15,7 @@ TRACKER_DOWNSAMPLE_RATE=1000
 printf "Using device data \n\t$1\nand tracker data \n\t$2\nResults will go into\n\t$3\n"
 
 # 0. Manual parts that you should do first
-#    - Record tracker data with ./scripts/tracker_start_recording.sh
+#    - Record tracker data with scripts/record_tracker_data.py
 #    - Record VIO data on device with the viotester app at the same time
 #    - Pull data from device (./scripts/pull-all-viotester-data-from-device.sh)
 
@@ -48,7 +48,7 @@ sed -i '$d' "$OUTPUT_DIR"/tracker_trimmed.jsonl
 # echo "Reporting position jumps in $OUTPUT_DIR/tracker_downsampled.jsonl:"
 # python ./scripts/find_position_jumps.py -i "$OUTPUT_DIR"/tracker_downsampled.jsonl
 
-# 5. Plot results original trajectories
+# 5. Plot original trajectories
 echo "Plotting non-synced non-transformed VIO trajectory vs. tracker"
 python ./scripts/plot_tracker_and_device.py \
     -t "$OUTPUT_DIR"/tracker_downsampled.jsonl \
