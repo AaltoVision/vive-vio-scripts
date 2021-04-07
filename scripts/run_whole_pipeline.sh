@@ -42,6 +42,7 @@ python ./scripts/vio_poses_to_camera_matrices.py \
 cp "$TRACKER_DATA_JSONL_FILE" "$OUTPUT_DIR"/tracker_trimmed.jsonl
 sed -i '$d' "$OUTPUT_DIR"/tracker_trimmed.jsonl
 ./scripts/downsample.sh "$TRACKER_DOWNSAMPLE_RATE" "$OUTPUT_DIR"/tracker_trimmed.jsonl > "$OUTPUT_DIR"/tracker_downsampled.jsonl
+rm "$OUTPUT_DIR"/tracker_trimmed.jsonl
 
 # # 4. Check if there are missing data parts in tracker data (reports 'zero' pose), and remove them
 # # TODO: automatically remove, instead of just reporting them
