@@ -1,3 +1,5 @@
 build/
 ref
 .vscode/
+data/
+!data/processed/matching_start_time/
