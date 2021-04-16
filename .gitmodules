@@ -1,0 +1,3 @@
+[submodule "libs/tagbench"]
+	path = libs/tagbench
+	url = git@github.com:AaltoVision/tagbench.git
