@@ -17,20 +17,20 @@ def angle_between_rotations(A: np.array, B: np.array):
 # (consider this when recording the dataset)
 
 
-def map_vio_to_tracker_with_sync(t_VIO, t_tracker, sync):
-    n_VIO = len(t_VIO)
+def map_vio_to_tracker_with_sync(t_vio, t_tracker, sync):
+    n_vio = len(t_vio)
     n_tracker = len(t_tracker)
     i_tracker = 0
-    vio_to_tracker_map = [0] * n_VIO  # TODO consider numpy int array
-    for i_vio in range(n_VIO):
-        t = t_VIO[i_vio] + sync
+    vio_to_tracker_map = [0] * n_vio  # TODO consider numpy int array
+    for i_vio in range(n_vio):
+        t = t_vio[i_vio] + sync
         while t_tracker[i_tracker] < t and i_tracker < n_tracker - 1:
             i_tracker += 1
         vio_to_tracker_map[i_vio] = i_tracker
     return vio_to_tracker_map
 
 
-def sync_rotation_diffs(t_VIO, R_VIO, t_tracker, R_tracker):
+def sync_rotation_diffs(t_vio, R_vio, t_tracker, R_tracker):
     """ TODO: port from calibrate_vio_tracker.cpp """
     sync = 0.0
     return sync
@@ -38,15 +38,15 @@ def sync_rotation_diffs(t_VIO, R_VIO, t_tracker, R_tracker):
 def normalized(v):
     return v / np.linalg.norm(v)
 
-def sync_rotation_speeds(t_VIO, R_VIO, t_tracker, R_tracker):
-    max_sync = (t_tracker[-1] - t_tracker[0]) - (t_VIO[-1] - t_VIO[0])
+def sync_rotation_speeds(t_vio, R_vio, t_tracker, R_tracker):
+    max_sync = (t_tracker[-1] - t_tracker[0]) - (t_vio[-1] - t_vio[0])
     syncs = np.linspace(0.0, max_sync, 100)
 
-    n_VIO = len(t_VIO)
+    n_vio = len(t_vio)
     n_tracker = len(t_tracker)
 
-    v_VIO = np.array(
-        [angle_between_rotations(R_VIO[:, :, i], R_VIO[:, :, i + 1]) for i in range(n_VIO - 1)]
+    v_vio = np.array(
+        [angle_between_rotations(R_vio[:, :, i], R_vio[:, :, i + 1]) for i in range(n_vio - 1)]
     )
     v_tracker = np.array(
         [
@@ -58,15 +58,15 @@ def sync_rotation_speeds(t_VIO, R_VIO, t_tracker, R_tracker):
     i_best_sync = 0
     max_similarity = 0
     for i_sync, sync in enumerate(syncs):
-        vio_to_tracker = map_vio_to_tracker_with_sync(t_VIO, t_tracker, sync)
+        vio_to_tracker = map_vio_to_tracker_with_sync(t_vio, t_tracker, sync)
         
         v_tracker_matched = np.array(
             [
-                v_tracker[vio_to_tracker[i_VIO]] for i_VIO in range(n_VIO - 1)
+                v_tracker[vio_to_tracker[i_vio]] for i_vio in range(n_vio - 1)
             ]
         )
 
-        similarity = np.dot(normalized(v_VIO), normalized(v_tracker_matched))
+        similarity = np.dot(normalized(v_vio), normalized(v_tracker_matched))
         if similarity > max_similarity:
             i_best_sync = i_sync
             max_similarity = similarity
@@ -74,7 +74,7 @@ def sync_rotation_speeds(t_VIO, R_VIO, t_tracker, R_tracker):
     return syncs[i_best_sync]
 
 
-def sync_movement_speeds(t_VIO, p_VIO, t_tracker, p_tracker):
+def sync_movement_speeds(t_vio, p_vio, t_tracker, p_tracker):
     """ TODO: port from align_trajectories.py """
     sync = 0.0
     return sync
