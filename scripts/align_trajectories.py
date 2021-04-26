@@ -116,7 +116,8 @@ if __name__ == "__main__":
 
         M_device_to_tracker = M_tracker @ np.linalg.inv(M_device)
         errors = []
-        transform_test_indices = [ 10*x for x in range(100) ] 
+        n_tracker = len(tracker.ts)
+        transform_test_indices = range(0, n_tracker, 30)
         for tracker_idx in transform_test_indices:
             device_idx = tracker_idx_to_device_idx(tracker_idx, sync)
             tracker_point = tracker.ps[0:3, tracker_idx]
@@ -138,8 +139,14 @@ if __name__ == "__main__":
     # minimize total error when considering the whole trajectories).
     errors_per_sync = []
     M_per_sync = []
-    sync_candidates = np.linspace(-20.0, 20.0, 1001)
-    # TODO more intelligent picking
+
+    # Note: tracker recording must start before and end after VIO recording
+    device_length = device.ts[-1] - device.ts[0]
+    tracker_length = tracker.ts[-1] - tracker.ts[0]
+    max_sync = tracker_length - device_length
+
+    sync_candidates = np.linspace(0.0, max_sync, 1001)
+    # TODO more intelligent picking for candidates
     N_candidates = [math.floor(i * 0.2 * tracker.ts.shape[0]) for i in range(1, 5) ]
     print('N_candidates:', N_candidates)
     for sync in sync_candidates:
@@ -156,19 +163,10 @@ if __name__ == "__main__":
     best_M = M_per_sync[np.argmin(errors_per_sync)]
     print('Optimal sync error:', min(errors_per_sync))
 
-    # # Temporarilly hack sync to correct one in living_room_0 case
-    # i = np.where(np.abs(sync_candidates-0.7) < 0.001)[0][0]
-    # best_sync = sync_candidates[i]
-    # best_M = M_per_sync[i]
-    # print('best_sync', best_sync)
-    # print('best_sync_error', min(errors_per_sync))
-    # print('best_M', best_M)
-
-    
     # Plot
     fig, axs = plt.subplots(3, 1, constrained_layout=True)
 
-    def plot_distances_by_time(
+    def plot_movement_speeds(
         ax, tracker_ds, device_ds, tracker_ts=None, device_ts=None
     ):
         tracker_ts = (
@@ -178,12 +176,12 @@ if __name__ == "__main__":
         ax.plot(tracker_ts, tracker_ds[0, :], "-", color="r", label='Tracker')
         ax.plot(device_ts, device_ds[0, :], "-", color="g", label='Device')
 
-    # Distances scaled by dt
+    # Plot movement speeds
     tracker_dts = tracker.ts[1:-1] - tracker.ts[0:-2]
     device_dts = device.ts[1:-1] - device.ts[0:-2]
-    assert((tracker_dts > 0.0).all())
-    assert((device_dts > 0.0).all())
-    plot_distances_by_time(
+    # assert((tracker_dts > 0.0).all())
+    # assert((device_dts > 0.0).all())
+    plot_movement_speeds(
         axs[0],
         tracker_ds / tracker_dts,
         device_ds / device_dts,
@@ -205,7 +203,7 @@ if __name__ == "__main__":
     synced_device_ts = device.ts + best_sync
     tracker_dts = tracker.ts[1:-1] - tracker.ts[0:-2]
     synced_device_dts = synced_device_ts[1:-1] - synced_device_ts[0:-2]
-    plot_distances_by_time(
+    plot_movement_speeds(
         axs[2],
         tracker_ds / tracker_dts,
         device_ds / synced_device_dts,
