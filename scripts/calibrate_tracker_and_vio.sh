@@ -3,10 +3,13 @@
 # Tracker recording must start before VIO recording, and must end after VIO recording
 # TODO: explain setup (tag assumed to be on top of 'origin' base station with 'tag right' pointing to x- in tracking space, and 'tag up' pointing to z+ in tracking space)
 
-# INPUT_DIR=data/viotester/recordings/arcore-20210412162821/
-INPUT_DIR=data/viotester/recordings/arcore-20210416121646/
-OUTPUT_DIR=data/moremovement/
-TRACKER_JSONL="$OUTPUT_DIR"/tracker.jsonl
+[[ -z "$1" ]] && { echo "Parameter 1 (device data directory) is missing" ; exit 1; }
+[[ -z "$2" ]] && { echo "Parameter 2 (tracker data jsonl file) is missing" ; exit 1; }
+[[ -z "$3" ]] && { echo "Parameter 3 (output dir) is missing" ; exit 1; }
+INPUT_DIR="$1"
+TRACKER_JSONL="$2"
+OUTPUT_DIR="$3"
+
 TRACKER_DOWNSAMPLING=100
 
 if [ ! -d $INPUT_DIR/frames ]; then
