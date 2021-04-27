@@ -37,7 +37,7 @@ if [ ! -f $OUTPUT_DIR/vio_camera_matrices.jsonl ]; then
     echo "--- Make version of vio.jsonl with camera matrices, for plotting ---"
     # - Original android-viotester output poses are in different format, so we change into
     # usual camera matrix (= [R|t] pose matrix) style, to match tracker data
-    python ./scripts/vio_poses_to_camera_matrices_fixed.py \
+    python ./scripts/preprocessed_vio_poses_to_camera_matrices.py \
         < $OUTPUT_DIR/vio.jsonl \
         > $OUTPUT_DIR/vio_camera_matrices.jsonl
 
