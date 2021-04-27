@@ -1,3 +1,12 @@
 [submodule "libs/tagbench"]
 	path = libs/tagbench
 	url = git@github.com:AaltoVision/tagbench.git
+[submodule "libs/find_tag_space_poses/libs/json"]
+	path = libs/find_tag_space_poses/libs/json
+	url = https://github.com/nlohmann/json
+[submodule "libs/find_tag_space_poses/libs/eigen"]
+	path = libs/find_tag_space_poses/libs/eigen
+	url = https://gitlab.com/libeigen/eigen.git
+[submodule "libs/find_tag_space_poses/libs/cxxopts"]
+	path = libs/find_tag_space_poses/libs/cxxopts
+	url = https://github.com/jarro2783/cxxopts
