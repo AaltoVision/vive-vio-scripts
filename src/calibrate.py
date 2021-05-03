@@ -1,6 +1,6 @@
 import numpy as np
 
-# Note: Calibration is not finished. This python version is based on libs/calibrate_vio_tracker/src/main.cpp, which also is not finished and probably has some math bug
+# Note: Calibration is not finished. This python version is based on libs/calibrate_vio_tracker/src/main.cpp, which also is not finished and probably has some math bug. Basic derivation of the math is in docs/calibration_math.jpg, but may have some error. In that image, 'R_vio(i)' and 't_VIO' are orientation and position of the VIO device in the Apriltag's local (real-world) coordinates at frame 'i', which is what the 'find_tag_space_poses' program outputs.
 
 # Find calibration matrix (tracker position in VIO local coords)
 # TODO: currently just returns the position, not relative orientation (tracker orientation in VIO local coords),
