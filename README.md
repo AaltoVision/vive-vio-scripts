@@ -9,6 +9,10 @@
   - Have a couple methods of syncing data, that is, finding time offset between tracker recording starting and VIO-data recording start time, see src/sync.py, sync_* functions
   - Could not get calibration (finding tracker position & orientation in VIO device local space, or inverse of that) working yet. Worked out the math for finding the position from two pose correspondences (tracker and VIO pose data from two timestamps), but could not get the implementation working yet.
   - Many of the scripts (both *.sh and *.py) are probably most useful as a reference for ideas. Many things are unfinished (calibration) or not robust yet, and due to expecting data in different forms, for example android-viotester vs. tracker vs. preprocessed data formats, the scripts are not always compatible. Do not be afraid of taking pieces from here and there to make something new for your exact use case.
+  - Some of the code in the repo is C++ , but those parts are rather simple and should be redone in python for easier setup and more rapid development
+    - libs/calibrate_vio_tracker currently serves as reference for calibration code and syncing by rotation speeds and should be deleted soon
+    - libs/find_tag_space_poses just uses OpenCV's solvePnP to find VIO pose relative to Apriltag in the camera image (homography), and would be easier to use as a python script. Actually the Apriltag library itself seems to have functionality for getting the homography matrix out, so changing input_data_preprocessor to output homography matrices should make this program obsolete.
+    - libs/tagbench/ is used for the input_data_preprocessor part for transforming VIO data a bit and detecting Apriltags in camera images. This might be worth keeping as-is, because the Apriltag library might not be easily available in python.
 
 ## Data formats
 

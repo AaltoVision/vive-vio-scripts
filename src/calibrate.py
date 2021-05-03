@@ -1,6 +1,6 @@
 import numpy as np
 
-# Note: Calibration is not finished. This python version is based on 
+# Note: Calibration is not finished. This python version is based on libs/calibrate_vio_tracker/src/main.cpp, which also is not finished and probably has some math bug
 
 # Find calibration matrix (tracker position in VIO local coords)
 # TODO: currently just returns the position, not relative orientation (tracker orientation in VIO local coords),
