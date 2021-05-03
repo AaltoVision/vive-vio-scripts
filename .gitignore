@@ -4,3 +4,4 @@ ref
 data/
 !data/processed/matching_start_time/
 !backups/
+__pycache__/
