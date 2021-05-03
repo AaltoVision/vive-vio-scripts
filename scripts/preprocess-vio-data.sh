@@ -2,6 +2,7 @@
 
 # Call this script with input file and output file as arguments
 # e.g. ./preprocess-vio-data.sh input.jsonl output.jsonl
+# Note: this still leaves the poses in the VIO-convention M = (R | -R_inverse*t)
 
 if [ ! -f "$1" ]; then
     echo "$1 is not a file"

@@ -2,11 +2,18 @@
 
 set -e
 
-INPUT_DIR=data/viotester/recordings/arcore-20210416121646/
-OUTPUT_DIR=data/new_calib_moremovement/
-TRACKER_JSONL=data/new_calib_moremovement/tracker.jsonl
+[[ -z "$1" ]] && { echo "Parameter 1 (device data directory) is missing" ; exit 1; }
+[[ -z "$2" ]] && { echo "Parameter 2 (tracker data jsonl file) is missing" ; exit 1; }
+[[ -z "$3" ]] && { echo "Parameter 3 (opencv build path) is missing" ; exit 1; }
+[[ -z "$4" ]] && { echo "Parameter 4 (output dir) is missing" ; exit 1; }
+[[ -z "$5" ]] && { echo "Parameter 5 (tag side length in the camera images) is missing. For example, use 0.025 if the tag is 2.5cm wide." ; exit 1; }
+INPUT_DIR="$1"
+TRACKER_JSONL="$2"
+OPENCV_BUILD_PATH="$3"
+OUTPUT_DIR="$4"
+TAG_SIDE_LENGTH="$5"
+
 TRACKER_DOWNSAMPLING=100
-OPENCV_BUILD_PATH=~/code/work_cv/refs/opencv/build/
 
 if [ ! -d $INPUT_DIR/frames ]; then
     echo "--- Extract VIO frames with ffmpeg ---"
@@ -58,17 +65,16 @@ if [ ! -f "$OUTPUT_DIR"/ds"$TRACKER_DOWNSAMPLING"_tracker_minusfirst.jsonl ]; th
         > "$OUTPUT_DIR"/ds"$TRACKER_DOWNSAMPLING"_tracker_minusfirst.jsonl
 fi
 
-# # if [ ! -f $OUTPUT_DIR/vio_camera_matrices_automatically_aligned.jsonl ]; then
-# #     python ./scripts/align_trajectories.py \
-# #         -t "$OUTPUT_DIR"/ds"$TRACKER_DOWNSAMPLING"_tracker_minusfirst.jsonl \
-# #         -d "$OUTPUT_DIR"/vio_camera_matrices.jsonl \
-# #         -o "$OUTPUT_DIR"/vio_camera_matrices_automatically_aligned.jsonl
-# # fi
+# if [ ! -f $OUTPUT_DIR/vio_camera_matrices_automatically_aligned.jsonl ]; then
+#     python ./scripts/align_trajectories.py \
+#         -t "$OUTPUT_DIR"/ds"$TRACKER_DOWNSAMPLING"_tracker_minusfirst.jsonl \
+#         -d "$OUTPUT_DIR"/vio_camera_matrices.jsonl \
+#         -o "$OUTPUT_DIR"/vio_camera_matrices_automatically_aligned.jsonl
+# fi
 
 build_config=Debug
 # build_config=RelWithDebInfo
 # build_config=Release
-
 if [ ! -d libs/find_tag_space_poses/build ]; then
     echo "--- Generate find_tag_poses CMake build ---"
     cmake -Hlibs/find_tag_space_poses -Blibs/find_tag_space_poses/build -DCMAKE_PREFIX_PATH=$OPENCV_BUILD_PATH
@@ -89,13 +95,17 @@ if [ ! -f $OUTPUT_DIR/vio_with_tag_space_poses.jsonl ]; then
     time libs/find_tag_space_poses/build/$build_config/find_tag_space_poses.exe \
         -i $OUTPUT_DIR/vio_camera_matrices.jsonl \
         -o $OUTPUT_DIR/vio_with_tag_space_poses.jsonl \
-        -s 0.025
+        -s $TAG_SIDE_LENGTH
 fi
 
 echo "--- Sync and calibrate ---"
 python src/sync.py \
     -d $OUTPUT_DIR/vio_with_tag_space_poses.jsonl \
     -t $OUTPUT_DIR/ds"$TRACKER_DOWNSAMPLING"_tracker_minusfirst.jsonl \
-    --pose_name tag_space_pose
+    --pose_name tag_space_pose \
+    --plot
+
+# TODO: calibration; what is in calibrate.py didn't seem to work yet,
+# perhaps some problem with the math or data?
 
 echo "--- Done ---"
