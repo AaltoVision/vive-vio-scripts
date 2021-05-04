@@ -1,4 +1,4 @@
-# Record VIO trajectories with Vive tracker groundtruth
+# Scripts for recording Vive tracker data, syncing with VIO (Visual inertial odometry) data, and calibrating tracker and VIO devices
 
 - Work in progress, including this readme
 - See <i>scripts/new_calibrate.sh</i> for scripts that use VIO data with an Apriltag in the frames, and use that for syncing VIO and tracker data, and finding calibration matrix between (note: calibration does not work yet)
